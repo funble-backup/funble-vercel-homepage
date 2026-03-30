@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { queryOne } from "@/lib/db";
-import { verifyPassword, createToken, setAuthCookie } from "@/lib/auth";
-import type { AdminUser } from "@/types";
+import { createToken, setAuthCookie } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
@@ -14,27 +12,20 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = await queryOne<AdminUser>("SELECT * FROM admin_users WHERE username = ?", username);
+    const adminUsername = process.env.ADMIN_USERNAME;
+    const adminPassword = process.env.ADMIN_PASSWORD;
 
-    if (!user) {
+    if (username !== adminUsername || password !== adminPassword) {
       return NextResponse.json(
         { error: "아이디 또는 비밀번호가 올바르지 않습니다." },
         { status: 401 }
       );
     }
 
-    const valid = await verifyPassword(password, user.password_hash);
-    if (!valid) {
-      return NextResponse.json(
-        { error: "아이디 또는 비밀번호가 올바르지 않습니다." },
-        { status: 401 }
-      );
-    }
-
-    const token = createToken({ userId: user.id, username: user.username });
+    const token = createToken({ userId: 1, username });
     await setAuthCookie(token);
 
-    return NextResponse.json({ success: true, username: user.username });
+    return NextResponse.json({ success: true, username });
   } catch {
     return NextResponse.json(
       { error: "로그인 처리 중 오류가 발생했습니다." },

@@ -1,15 +1,20 @@
 import Database from "better-sqlite3";
-import { neon } from "@neondatabase/serverless";
+import { createClient } from "@libsql/client";
 import path from "path";
 
 // ---------------------------------------------------------------------------
-// Async DB abstraction — works with both SQLite (local) and Postgres (Vercel)
+// Async DB abstraction — works with both SQLite (local) and Turso (production)
 // ---------------------------------------------------------------------------
 // Usage:
 //   const row  = await queryOne<Notice>("SELECT * FROM notices WHERE id = ?", id);
 //   const rows = await queryAll<Notice>("SELECT * FROM notices LIMIT ? OFFSET ?", limit, offset);
 //   const res  = await execute("INSERT INTO notices (title) VALUES (?)", title);
 //   // res.lastInsertRowid, res.changes
+// ---------------------------------------------------------------------------
+// Environment variables:
+//   TURSO_DATABASE_URL  — libsql://your-db.turso.io
+//   TURSO_AUTH_TOKEN    — Turso auth token
+//   (both unset → local SQLite)
 // ---------------------------------------------------------------------------
 
 export interface ExecResult {
@@ -27,7 +32,7 @@ let _execute: ExecFn;
 let _initialized = false;
 
 // ---------------------------------------------------------------------------
-// SQLite (local) — when DATABASE_URL is NOT set
+// SQLite (local) — when TURSO_DATABASE_URL is NOT set
 // ---------------------------------------------------------------------------
 function initSqlite() {
   const DB_PATH = path.join(process.cwd(), "funble.db");
@@ -51,43 +56,24 @@ function initSqlite() {
 }
 
 // ---------------------------------------------------------------------------
-// Postgres / Neon (production) — when DATABASE_URL IS set
+// Turso (production) — when TURSO_DATABASE_URL IS set
 // ---------------------------------------------------------------------------
-function convertToPostgres(sql: string): string {
-  let converted = sql;
-  // ? → $1, $2, ...
-  let idx = 0;
-  converted = converted.replace(/\?/g, () => `$${++idx}`);
-  // datetime('now') → NOW()
-  converted = converted.replace(/datetime\('now'\)/gi, "NOW()");
-  return converted;
-}
+function initTurso(url: string, authToken?: string) {
+  const client = createClient({ url, authToken });
 
-function initNeon(databaseUrl: string) {
-  const sql = neon(databaseUrl) as unknown as (query: string, params: unknown[]) => Promise<Record<string, unknown>[]>;
-
-  _queryAll = async <T>(query: string, ...params: unknown[]) => {
-    const pgQuery = convertToPostgres(query);
-    const rows = await sql(pgQuery, params);
-    return rows as T[];
+  _queryAll = async <T>(sql: string, ...params: unknown[]) => {
+    const result = await client.execute({ sql, args: params as (string | number | null | bigint | ArrayBuffer)[] });
+    return result.rows as T[];
   };
 
-  _queryOne = async <T>(query: string, ...params: unknown[]) => {
-    const pgQuery = convertToPostgres(query);
-    const rows = await sql(pgQuery, params);
-    return (rows[0] as T) ?? undefined;
+  _queryOne = async <T>(sql: string, ...params: unknown[]) => {
+    const result = await client.execute({ sql, args: params as (string | number | null | bigint | ArrayBuffer)[] });
+    return (result.rows[0] as T) ?? undefined;
   };
 
-  _execute = async (query: string, ...params: unknown[]) => {
-    const pgQuery = convertToPostgres(query);
-    // For INSERT, append RETURNING id to get lastInsertRowid
-    const isInsert = /^\s*INSERT/i.test(pgQuery);
-    const finalQuery = isInsert && !pgQuery.includes("RETURNING")
-      ? `${pgQuery} RETURNING id`
-      : pgQuery;
-    const rows = await sql(finalQuery, params);
-    const lastInsertRowid = isInsert && rows.length > 0 ? (rows[0] as { id: number }).id : 0;
-    return { lastInsertRowid, changes: rows.length || 1 };
+  _execute = async (sql: string, ...params: unknown[]) => {
+    const result = await client.execute({ sql, args: params as (string | number | null | bigint | ArrayBuffer)[] });
+    return { lastInsertRowid: result.lastInsertRowid ?? 0, changes: result.rowsAffected };
   };
 }
 
@@ -98,9 +84,11 @@ function ensureInit() {
   if (_initialized) return;
   _initialized = true;
 
-  const databaseUrl = process.env.DATABASE_URL;
-  if (databaseUrl) {
-    initNeon(databaseUrl);
+  const tursoUrl = process.env.TURSO_DATABASE_URL;
+  const tursoToken = process.env.TURSO_DATABASE_TOKEN;
+
+  if (tursoUrl) {
+    initTurso(tursoUrl, tursoToken);
   } else {
     initSqlite();
   }
@@ -134,7 +122,7 @@ export function getDb(): Database.Database {
 }
 
 // ---------------------------------------------------------------------------
-// Table init (SQLite only — Postgres uses migrations)
+// Table init (SQLite only — Turso uses the same schema via dashboard/migration)
 // ---------------------------------------------------------------------------
 function initTables(raw: Database.Database) {
   raw.exec(`
