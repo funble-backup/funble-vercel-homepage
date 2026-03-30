@@ -132,21 +132,21 @@ export default function FunblePage() {
       {/* 펀블의 개척자 */}
       <section className="py-20 px-4 bg-[#f5f5f5]">
         <div className="max-w-5xl mx-auto text-center">
-          <p data-aos="fade-up" className="text-xl md:text-2xl text-gray-800 leading-relaxed mb-6">
+          <p data-aos="fade-up" className="text-[1.6rem] md:text-[2.5rem] font-medium text-[#1b1b1b] leading-[1.2] mb-10">
             새로운 투자 세상을 만들어 가고 있는
             <br />
             <strong className="font-bold">펀블의 개척자</strong>들을 소개합니다.
           </p>
-          <p data-aos="fade-up" data-aos-delay="200" className="text-gray-600 leading-relaxed mb-10">
-            <strong className="font-semibold">&ldquo;소수가 아닌 모두에게 공평한 투자 기회&rdquo;</strong>
+          <p data-aos="fade-up" data-aos-delay="200" className="text-[1rem] md:text-[1.25rem] text-[#333] leading-relaxed mb-16">
+            <strong className="font-medium">&ldquo;소수가 아닌 모두에게 공평한 투자 기회&rdquo;</strong>
             라는 가치의 실현을 위해
             <br />
             국내외 다양한 유수 기업의 전문가들이 미션을 수행하고 있습니다.
           </p>
-          <p data-aos="fade-up" className="text-lg md:text-xl text-gray-800">
+          <p data-aos="fade-up" className="text-[1.4rem] md:text-[2.2rem] font-medium text-[#1b1b1b]">
             투자, 그 이상의 역사를
             <br className="md:hidden" />
-            <span className="text-[rgb(35,184,188)] font-bold"> 금융의 중심에서</span> 만들고 있습니다.
+            <span className="text-[rgb(35,184,188)]"> 금융의 중심에서</span> 만들고 있습니다.
           </p>
         </div>
       </section>

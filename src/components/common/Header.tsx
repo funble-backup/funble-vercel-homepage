@@ -7,9 +7,9 @@ import { FaBars, FaTimes } from "react-icons/fa";
 
 const NAV_ITEMS = [
   { label: "펀블소개", href: "/funble" },
-  { label: "공지사항", href: "/notice" },
   { label: "공시정보", href: "/announce" },
   { label: "고객지원", href: "/faq" },
+  { label: "공지사항", href: "/notice" },
 ];
 
 

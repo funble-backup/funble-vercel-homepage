@@ -64,7 +64,7 @@ function convertToPostgres(sql: string): string {
 }
 
 function initNeon(databaseUrl: string) {
-  const sql = neon(databaseUrl);
+  const sql = neon(databaseUrl) as unknown as (query: string, params: unknown[]) => Promise<Record<string, unknown>[]>;
 
   _queryAll = async <T>(query: string, ...params: unknown[]) => {
     const pgQuery = convertToPostgres(query);

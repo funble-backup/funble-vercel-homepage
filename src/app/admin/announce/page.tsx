@@ -22,7 +22,7 @@ export default function AdminAnnouncePage() {
   const [stockForm, setStockForm] = useState({ funble_cd: "", funble_nm: "", status: "end", sort_order: 0 });
   const [annForm, setAnnForm] = useState({ stock_id: 0, title: "", category: "", content: "", file_url: "" });
   const [uploading, setUploading] = useState(false);
-  const [priceForm, setPriceForm] = useState({ stock_id: 0, price: 0, date: "" });
+  const [priceForm, setPriceForm] = useState({ stock_id: 0, price: 0, begin_price: 0, end_price: 0, high_price: 0, low_price: 0, deal_qty: 0, date: "" });
 
   async function loadAll() {
     setLoading(true);
@@ -63,7 +63,7 @@ export default function AdminAnnouncePage() {
     setEditingId(null);
     if (type === "stocks") setStockForm({ funble_cd: "", funble_nm: "", status: "end", sort_order: 0 });
     if (type === "announcements") setAnnForm({ stock_id: stocks[0]?.id || 0, title: "", category: "", content: "", file_url: "" });
-    if (type === "prices") setPriceForm({ stock_id: stocks[0]?.id || 0, price: 0, date: "" });
+    if (type === "prices") setPriceForm({ stock_id: stocks[0]?.id || 0, price: 0, begin_price: 0, end_price: 0, high_price: 0, low_price: 0, deal_qty: 0, date: "" });
     setShowModal(true);
   }
 
@@ -84,7 +84,7 @@ export default function AdminAnnouncePage() {
   function openEditPrice(p: StockPrice) {
     setModalType("prices");
     setEditingId(p.id);
-    setPriceForm({ stock_id: p.stock_id, price: p.price, date: p.date });
+    setPriceForm({ stock_id: p.stock_id, price: p.price, begin_price: p.begin_price || 0, end_price: p.end_price || 0, high_price: p.high_price || 0, low_price: p.low_price || 0, deal_qty: p.deal_qty || 0, date: p.date });
     setShowModal(true);
   }
 
@@ -241,7 +241,12 @@ export default function AdminAnnouncePage() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">종목</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">기준가</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600">기준가</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600">시가</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600">종가</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600">고가</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600">저가</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600">거래량</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">기준일</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">관리</th>
                 </tr>
@@ -250,7 +255,12 @@ export default function AdminAnnouncePage() {
                 {prices.map((p) => (
                   <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-3 text-gray-500">{getStockName(p.stock_id)}</td>
-                    <td className="px-4 py-3 text-gray-800">{p.price?.toLocaleString()}원</td>
+                    <td className="px-4 py-3 text-right text-gray-800">{p.price?.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right text-gray-500">{p.begin_price?.toLocaleString() || "-"}</td>
+                    <td className="px-4 py-3 text-right text-gray-500">{p.end_price?.toLocaleString() || "-"}</td>
+                    <td className="px-4 py-3 text-right text-gray-500">{p.high_price?.toLocaleString() || "-"}</td>
+                    <td className="px-4 py-3 text-right text-gray-500">{p.low_price?.toLocaleString() || "-"}</td>
+                    <td className="px-4 py-3 text-right text-gray-500">{p.deal_qty?.toLocaleString() || "-"}</td>
                     <td className="px-4 py-3 text-gray-500">{p.date}</td>
                     <td className="px-4 py-3 text-right space-x-2">
                       <button onClick={() => openEditPrice(p)} className="text-blue-600 hover:underline">수정</button>
@@ -259,7 +269,7 @@ export default function AdminAnnouncePage() {
                   </tr>
                 ))}
                 {prices.length === 0 && (
-                  <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">기준가가 없습니다.</td></tr>
+                  <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">기준가가 없습니다.</td></tr>
                 )}
               </tbody>
             </table>
@@ -371,12 +381,34 @@ export default function AdminAnnouncePage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">기준가</label>
-                    <input type="number" value={priceForm.price} onChange={(e) => setPriceForm({ ...priceForm, price: Number(e.target.value) })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  </div>
-                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">기준일</label>
                     <input type="date" value={priceForm.date} onChange={(e) => setPriceForm({ ...priceForm, date: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">기준가</label>
+                      <input type="number" value={priceForm.price} onChange={(e) => setPriceForm({ ...priceForm, price: Number(e.target.value) })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">시가</label>
+                      <input type="number" value={priceForm.begin_price} onChange={(e) => setPriceForm({ ...priceForm, begin_price: Number(e.target.value) })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">종가</label>
+                      <input type="number" value={priceForm.end_price} onChange={(e) => setPriceForm({ ...priceForm, end_price: Number(e.target.value) })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">고가</label>
+                      <input type="number" value={priceForm.high_price} onChange={(e) => setPriceForm({ ...priceForm, high_price: Number(e.target.value) })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">저가</label>
+                      <input type="number" value={priceForm.low_price} onChange={(e) => setPriceForm({ ...priceForm, low_price: Number(e.target.value) })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">거래량</label>
+                      <input type="number" value={priceForm.deal_qty} onChange={(e) => setPriceForm({ ...priceForm, deal_qty: Number(e.target.value) })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
                   </div>
                 </>
               )}
