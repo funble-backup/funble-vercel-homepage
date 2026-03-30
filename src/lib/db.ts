@@ -30,6 +30,7 @@ let _queryAll: QueryFn;
 let _queryOne: QueryOneFn;
 let _execute: ExecFn;
 let _initialized = false;
+let _initPromise: Promise<void> | null = null;
 
 // ---------------------------------------------------------------------------
 // SQLite (local) — when TURSO_DATABASE_URL is NOT set
@@ -58,14 +59,11 @@ function initSqlite() {
 // ---------------------------------------------------------------------------
 // Turso (production) — when TURSO_DATABASE_URL IS set
 // ---------------------------------------------------------------------------
-function initTurso(url: string, authToken?: string) {
+async function initTurso(url: string, authToken?: string) {
   const client = createClient({ url, authToken });
   // Keep Turso schema in sync for first deploys / new environments.
   // This is idempotent (CREATE TABLE IF NOT EXISTS).
-  initTablesTurso(client).catch((err) => {
-    // Avoid failing import-time initialization; let queries surface errors.
-    console.error("[db] failed to init Turso schema:", err);
-  });
+  await initTablesTurso(client);
 
   _queryAll = async <T>(sql: string, ...params: unknown[]) => {
     const result = await client.execute({ sql, args: params as (string | number | null | bigint | ArrayBuffer)[] });
@@ -87,31 +85,41 @@ function initTurso(url: string, authToken?: string) {
 // Init & export
 // ---------------------------------------------------------------------------
 function ensureInit() {
-  if (_initialized) return;
+  if (_initPromise) return _initPromise;
+  if (_initialized) return Promise.resolve();
   _initialized = true;
 
-  const tursoUrl = process.env.TURSO_DATABASE_URL;
-  const tursoToken = process.env.TURSO_DATABASE_TOKEN;
+  _initPromise = (async () => {
+    const tursoUrl = process.env.TURSO_DATABASE_URL;
+    const tursoToken = process.env.TURSO_DATABASE_TOKEN;
 
-  if (tursoUrl) {
-    initTurso(tursoUrl, tursoToken);
-  } else {
-    initSqlite();
-  }
+    try {
+      if (tursoUrl) {
+        await initTurso(tursoUrl, tursoToken);
+      } else {
+        initSqlite();
+      }
+    } catch (err) {
+      console.error("[db] init failed:", err);
+      throw err;
+    }
+  })();
+
+  return _initPromise;
 }
 
 export async function queryAll<T = Record<string, unknown>>(sql: string, ...params: unknown[]): Promise<T[]> {
-  ensureInit();
+  await ensureInit();
   return _queryAll<T>(sql, ...params);
 }
 
 export async function queryOne<T = Record<string, unknown>>(sql: string, ...params: unknown[]): Promise<T | undefined> {
-  ensureInit();
+  await ensureInit();
   return _queryOne<T>(sql, ...params);
 }
 
 export async function execute(sql: string, ...params: unknown[]): Promise<ExecResult> {
-  ensureInit();
+  await ensureInit();
   return _execute(sql, ...params);
 }
 
