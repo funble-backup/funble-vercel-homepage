@@ -5,6 +5,7 @@ import Link from "next/link";
 
 const navItems = [
   { href: "/admin", label: "대시보드" },
+  { href: "/admin/banners", label: "메인배너" },
   { href: "/admin/notices", label: "공지사항" },
   { href: "/admin/announce", label: "공시정보" },
   { href: "/admin/faq", label: "FAQ" },

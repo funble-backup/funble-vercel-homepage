@@ -1,39 +1,70 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay } from "swiper/modules";
 import "swiper/css";
 import Image from "next/image";
-
-const slides = [
-  { src: "/images/banners/banner1_pc.png", alt: "펀블 매진 공지" },
-  { src: "/images/banners/banner2_pc.jpg", alt: "펀블 앱 다운로드" },
-  { src: "/images/banners/banner3_pc.jpg", alt: "펀블 포인트 이벤트" },
-];
+import Link from "next/link";
+import type { Banner } from "@/types";
 
 export default function HeroBanner() {
+  const [banners, setBanners] = useState<Banner[]>([]);
+
+  useEffect(() => {
+    fetch("/api/banners")
+      .then((res) => res.json())
+      .then((data) => setBanners(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
+
+  if (banners.length === 0) return null;
+
   return (
     <section className="w-full">
       <Swiper
         modules={[Autoplay]}
         autoplay={{ delay: 7000, disableOnInteraction: false }}
         speed={700}
-        loop
+        loop={banners.length > 1}
         className="w-full"
       >
-        {slides.map((slide, i) => (
-          <SwiperSlide key={i}>
+        {banners.map((banner, i) => {
+          const content = (
             <div className="relative w-full h-[calc(100vh-5rem)] bg-gray-100">
+              {/* PC 이미지 */}
+              {banner.image_url && (
+                <Image
+                  src={banner.image_url}
+                  alt={banner.title}
+                  fill
+                  className="object-cover hidden md:block"
+                  priority={i === 0}
+                />
+              )}
+              {/* 모바일 이미지 */}
               <Image
-                src={slide.src}
-                alt={slide.alt}
+                src={banner.mobile_image_url || banner.image_url}
+                alt={banner.title}
                 fill
-                className="object-cover"
+                className="object-cover md:hidden"
                 priority={i === 0}
               />
             </div>
-          </SwiperSlide>
-        ))}
+          );
+
+          return (
+            <SwiperSlide key={banner.id}>
+              {banner.link_url ? (
+                <Link href={banner.link_url}>
+                  {content}
+                </Link>
+              ) : (
+                content
+              )}
+            </SwiperSlide>
+          );
+        })}
       </Swiper>
     </section>
   );

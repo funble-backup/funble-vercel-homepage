@@ -142,6 +142,7 @@ function initTables(raw: Database.Database) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
       image_url TEXT NOT NULL DEFAULT '',
+      mobile_image_url TEXT NOT NULL DEFAULT '',
       link_url TEXT NOT NULL DEFAULT '',
       sort_order INTEGER NOT NULL DEFAULT 0,
       is_active INTEGER NOT NULL DEFAULT 1,
