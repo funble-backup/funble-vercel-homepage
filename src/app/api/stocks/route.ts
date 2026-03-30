@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { queryAll } from "@/lib/db";
 import type { Stock } from "@/types";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const status = searchParams.get("status");
 
-  const db = getDb();
   let query = "SELECT * FROM stocks";
   const queryParams: unknown[] = [];
 
@@ -16,6 +15,6 @@ export async function GET(request: NextRequest) {
   }
 
   query += " ORDER BY sort_order ASC";
-  const stocks = db.prepare(query).all(...queryParams) as Stock[];
+  const stocks = await queryAll<Stock>(query, ...queryParams);
   return NextResponse.json(stocks);
 }

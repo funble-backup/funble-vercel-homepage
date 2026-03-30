@@ -1,22 +1,143 @@
 import Database from "better-sqlite3";
+import { neon } from "@neondatabase/serverless";
 import path from "path";
 
-const DB_PATH = path.join(process.cwd(), "funble.db");
+// ---------------------------------------------------------------------------
+// Async DB abstraction — works with both SQLite (local) and Postgres (Vercel)
+// ---------------------------------------------------------------------------
+// Usage:
+//   const row  = await queryOne<Notice>("SELECT * FROM notices WHERE id = ?", id);
+//   const rows = await queryAll<Notice>("SELECT * FROM notices LIMIT ? OFFSET ?", limit, offset);
+//   const res  = await execute("INSERT INTO notices (title) VALUES (?)", title);
+//   // res.lastInsertRowid, res.changes
+// ---------------------------------------------------------------------------
 
-let db: Database.Database | null = null;
+export interface ExecResult {
+  lastInsertRowid: number | bigint;
+  changes: number;
+}
 
-export function getDb(): Database.Database {
-  if (!db) {
-    db = new Database(DB_PATH);
-    db.pragma("journal_mode = WAL");
-    db.pragma("foreign_keys = ON");
-    initTables(db);
+type QueryFn = <T = Record<string, unknown>>(sql: string, ...params: unknown[]) => Promise<T[]>;
+type QueryOneFn = <T = Record<string, unknown>>(sql: string, ...params: unknown[]) => Promise<T | undefined>;
+type ExecFn = (sql: string, ...params: unknown[]) => Promise<ExecResult>;
+
+let _queryAll: QueryFn;
+let _queryOne: QueryOneFn;
+let _execute: ExecFn;
+let _initialized = false;
+
+// ---------------------------------------------------------------------------
+// SQLite (local) — when DATABASE_URL is NOT set
+// ---------------------------------------------------------------------------
+function initSqlite() {
+  const DB_PATH = path.join(process.cwd(), "funble.db");
+  const raw = new Database(DB_PATH);
+  raw.pragma("journal_mode = WAL");
+  raw.pragma("foreign_keys = ON");
+  initTables(raw);
+
+  _queryAll = async <T>(sql: string, ...params: unknown[]) => {
+    return raw.prepare(sql).all(...params) as T[];
+  };
+
+  _queryOne = async <T>(sql: string, ...params: unknown[]) => {
+    return raw.prepare(sql).get(...params) as T | undefined;
+  };
+
+  _execute = async (sql: string, ...params: unknown[]) => {
+    const result = raw.prepare(sql).run(...params);
+    return { lastInsertRowid: result.lastInsertRowid, changes: result.changes };
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Postgres / Neon (production) — when DATABASE_URL IS set
+// ---------------------------------------------------------------------------
+function convertToPostgres(sql: string): string {
+  let converted = sql;
+  // ? → $1, $2, ...
+  let idx = 0;
+  converted = converted.replace(/\?/g, () => `$${++idx}`);
+  // datetime('now') → NOW()
+  converted = converted.replace(/datetime\('now'\)/gi, "NOW()");
+  return converted;
+}
+
+function initNeon(databaseUrl: string) {
+  const sql = neon(databaseUrl);
+
+  _queryAll = async <T>(query: string, ...params: unknown[]) => {
+    const pgQuery = convertToPostgres(query);
+    const rows = await sql(pgQuery, params);
+    return rows as T[];
+  };
+
+  _queryOne = async <T>(query: string, ...params: unknown[]) => {
+    const pgQuery = convertToPostgres(query);
+    const rows = await sql(pgQuery, params);
+    return (rows[0] as T) ?? undefined;
+  };
+
+  _execute = async (query: string, ...params: unknown[]) => {
+    const pgQuery = convertToPostgres(query);
+    // For INSERT, append RETURNING id to get lastInsertRowid
+    const isInsert = /^\s*INSERT/i.test(pgQuery);
+    const finalQuery = isInsert && !pgQuery.includes("RETURNING")
+      ? `${pgQuery} RETURNING id`
+      : pgQuery;
+    const rows = await sql(finalQuery, params);
+    const lastInsertRowid = isInsert && rows.length > 0 ? (rows[0] as { id: number }).id : 0;
+    return { lastInsertRowid, changes: rows.length || 1 };
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Init & export
+// ---------------------------------------------------------------------------
+function ensureInit() {
+  if (_initialized) return;
+  _initialized = true;
+
+  const databaseUrl = process.env.DATABASE_URL;
+  if (databaseUrl) {
+    initNeon(databaseUrl);
+  } else {
+    initSqlite();
   }
+}
+
+export async function queryAll<T = Record<string, unknown>>(sql: string, ...params: unknown[]): Promise<T[]> {
+  ensureInit();
+  return _queryAll<T>(sql, ...params);
+}
+
+export async function queryOne<T = Record<string, unknown>>(sql: string, ...params: unknown[]): Promise<T | undefined> {
+  ensureInit();
+  return _queryOne<T>(sql, ...params);
+}
+
+export async function execute(sql: string, ...params: unknown[]): Promise<ExecResult> {
+  ensureInit();
+  return _execute(sql, ...params);
+}
+
+// ---------------------------------------------------------------------------
+// Legacy: getDb() for SQLite-only code paths (e.g. crawl scripts)
+// ---------------------------------------------------------------------------
+export function getDb(): Database.Database {
+  const DB_PATH = path.join(process.cwd(), "funble.db");
+  const db = new Database(DB_PATH);
+  db.pragma("journal_mode = WAL");
+  db.pragma("foreign_keys = ON");
+  initTables(db);
   return db;
 }
 
-function initTables(db: Database.Database) {
-  db.exec(`
+// ---------------------------------------------------------------------------
+// Table init (SQLite only — Postgres uses migrations)
+// ---------------------------------------------------------------------------
+function initTables(raw: Database.Database) {
+  raw.exec(`
     CREATE TABLE IF NOT EXISTS banners (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,

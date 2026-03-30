@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { queryOne } from "@/lib/db";
 import type { Notice } from "@/types";
 
 export async function GET(
@@ -7,8 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const db = getDb();
-  const notice = db.prepare("SELECT * FROM notices WHERE id = ?").get(Number(id)) as Notice | undefined;
+  const notice = await queryOne<Notice>("SELECT * FROM notices WHERE id = ?", Number(id));
 
   if (!notice) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

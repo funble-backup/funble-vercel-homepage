@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { queryAll, queryOne } from "@/lib/db";
 import type { StockPrice, PaginatedResponse } from "@/types";
 
 const PAGE_SIZE = 20;
@@ -14,13 +14,8 @@ export async function GET(
   const page = Math.max(1, Number(searchParams.get("page") || "1"));
   const offset = (page - 1) * PAGE_SIZE;
 
-  const db = getDb();
-  const totalCount = (
-    db.prepare("SELECT COUNT(*) as cnt FROM stock_prices WHERE stock_id = ?").get(stockId) as { cnt: number }
-  ).cnt;
-  const data = db
-    .prepare("SELECT * FROM stock_prices WHERE stock_id = ? ORDER BY date DESC LIMIT ? OFFSET ?")
-    .all(stockId, PAGE_SIZE, offset) as StockPrice[];
+  const totalCount = (await queryOne<{ cnt: number }>("SELECT COUNT(*) as cnt FROM stock_prices WHERE stock_id = ?", stockId))!.cnt;
+  const data = await queryAll<StockPrice>("SELECT * FROM stock_prices WHERE stock_id = ? ORDER BY date DESC LIMIT ? OFFSET ?", stockId, PAGE_SIZE, offset);
 
   const response: PaginatedResponse<StockPrice> = {
     data,

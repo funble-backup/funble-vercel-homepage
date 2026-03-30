@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { queryAll } from "@/lib/db";
 import type { Faq } from "@/types";
 
 export async function GET(request: NextRequest) {
@@ -7,7 +7,6 @@ export async function GET(request: NextRequest) {
   const categoryId = searchParams.get("category_id");
   const search = searchParams.get("search");
 
-  const db = getDb();
   let query = "SELECT * FROM faqs WHERE 1=1";
   const params: unknown[] = [];
 
@@ -23,6 +22,6 @@ export async function GET(request: NextRequest) {
   }
 
   query += " ORDER BY sort_order ASC";
-  const faqs = db.prepare(query).all(...params) as Faq[];
+  const faqs = await queryAll<Faq>(query, ...params);
   return NextResponse.json(faqs);
 }

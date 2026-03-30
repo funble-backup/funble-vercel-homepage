@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
     "@types/aos": "^3.0.7",
     "aos": "^2.3.4",
     "bcryptjs": "^3.0.3",

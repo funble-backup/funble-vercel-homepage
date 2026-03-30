@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { queryAll, queryOne } from "@/lib/db";
 
 // GET /api/terms?type=clause&version_date=2024.12.05
 // type: clause | service | privacy
@@ -13,23 +13,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "type is required" }, { status: 400 });
   }
 
-  const db = getDb();
-
   // 해당 type의 모든 날짜 목록
-  const versions = db
-    .prepare("SELECT version_date FROM terms WHERE type = ? ORDER BY version_date DESC")
-    .all(type) as { version_date: string }[];
+  const versions = await queryAll<{ version_date: string }>("SELECT version_date FROM terms WHERE type = ? ORDER BY version_date DESC", type);
 
   // 특정 날짜 or 최신 버전 내용
   let content: { id: number; type: string; version_date: string; content: string } | undefined;
   if (versionDate) {
-    content = db
-      .prepare("SELECT * FROM terms WHERE type = ? AND version_date = ?")
-      .get(type, versionDate) as typeof content;
+    content = await queryOne<{ id: number; type: string; version_date: string; content: string }>("SELECT * FROM terms WHERE type = ? AND version_date = ?", type, versionDate);
   } else {
-    content = db
-      .prepare("SELECT * FROM terms WHERE type = ? ORDER BY version_date DESC LIMIT 1")
-      .get(type) as typeof content;
+    content = await queryOne<{ id: number; type: string; version_date: string; content: string }>("SELECT * FROM terms WHERE type = ? ORDER BY version_date DESC LIMIT 1", type);
   }
 
   return NextResponse.json({
