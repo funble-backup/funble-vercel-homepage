@@ -36,10 +36,10 @@ yarn-error.log*
 # vercel
 .vercel
 
-# sqlite (tracked for deployment)
+# sqlite temp files
+funble.db-shm
+funble.db-wal
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-funble.db-shm
-funble.db-wal

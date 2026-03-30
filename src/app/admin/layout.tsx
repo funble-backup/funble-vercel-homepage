@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -18,6 +19,11 @@ export default function AdminLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [envInfo, setEnvInfo] = useState<{ env: string; db: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/env").then((r) => r.json()).then(setEnvInfo).catch(() => {});
+  }, []);
 
   // Login page doesn't use sidebar layout
   if (pathname === "/admin/login") {
@@ -34,7 +40,21 @@ export default function AdminLayout({
       {/* Sidebar */}
       <aside className="w-60 bg-white border-r border-gray-200 flex flex-col">
         <div className="p-5 border-b border-gray-200">
-          <h1 className="text-lg font-bold text-gray-800">펀블 관리자</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold text-gray-800">펀블 관리자</h1>
+            {envInfo && (
+              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                envInfo.env === "PRD"
+                  ? "bg-red-100 text-red-700"
+                  : "bg-green-100 text-green-700"
+              }`}>
+                {envInfo.env}
+              </span>
+            )}
+          </div>
+          {envInfo && (
+            <p className="text-[11px] text-gray-400 mt-1">DB: {envInfo.db}</p>
+          )}
         </div>
         <nav className="flex-1 p-3 space-y-1">
           {navItems.map((item) => {
