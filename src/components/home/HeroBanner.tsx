@@ -38,6 +38,7 @@ export default function HeroBanner() {
                   src={banner.image_url}
                   alt={banner.title}
                   fill
+                  sizes="100vw"
                   className="object-cover hidden md:block"
                   priority={i === 0}
                 />
@@ -47,6 +48,7 @@ export default function HeroBanner() {
                 src={banner.mobile_image_url || banner.image_url}
                 alt={banner.title}
                 fill
+                sizes="100vw"
                 className="object-cover md:hidden"
                 priority={i === 0}
               />

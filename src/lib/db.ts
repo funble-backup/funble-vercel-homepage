@@ -13,7 +13,7 @@ import path from "path";
 // ---------------------------------------------------------------------------
 // Environment variables:
 //   TURSO_DATABASE_URL  — libsql://your-db.turso.io
-//   TURSO_AUTH_TOKEN    — Turso auth token
+//   TURSO_DATABASE_TOKEN — Turso auth token
 //   (both unset → local SQLite)
 // ---------------------------------------------------------------------------
 
@@ -30,6 +30,7 @@ let _queryAll: QueryFn;
 let _queryOne: QueryOneFn;
 let _execute: ExecFn;
 let _initialized = false;
+let _initPromise: Promise<void> | null = null;
 
 // ---------------------------------------------------------------------------
 // SQLite (local) — when TURSO_DATABASE_URL is NOT set
@@ -58,8 +59,11 @@ function initSqlite() {
 // ---------------------------------------------------------------------------
 // Turso (production) — when TURSO_DATABASE_URL IS set
 // ---------------------------------------------------------------------------
-function initTurso(url: string, authToken?: string) {
+async function initTurso(url: string, authToken?: string) {
   const client = createClient({ url, authToken });
+  // Keep Turso schema in sync for first deploys / new environments.
+  // This is idempotent (CREATE TABLE IF NOT EXISTS).
+  await initTablesTurso(client);
 
   _queryAll = async <T>(sql: string, ...params: unknown[]) => {
     const result = await client.execute({ sql, args: params as (string | number | null | bigint | ArrayBuffer)[] });
@@ -81,31 +85,41 @@ function initTurso(url: string, authToken?: string) {
 // Init & export
 // ---------------------------------------------------------------------------
 function ensureInit() {
-  if (_initialized) return;
+  if (_initPromise) return _initPromise;
+  if (_initialized) return Promise.resolve();
   _initialized = true;
 
-  const tursoUrl = process.env.TURSO_DATABASE_URL;
-  const tursoToken = process.env.TURSO_DATABASE_TOKEN;
+  _initPromise = (async () => {
+    const tursoUrl = process.env.TURSO_DATABASE_URL;
+    const tursoToken = process.env.TURSO_DATABASE_TOKEN;
 
-  if (tursoUrl) {
-    initTurso(tursoUrl, tursoToken);
-  } else {
-    initSqlite();
-  }
+    try {
+      if (tursoUrl) {
+        await initTurso(tursoUrl, tursoToken);
+      } else {
+        initSqlite();
+      }
+    } catch (err) {
+      console.error("[db] init failed:", err);
+      throw err;
+    }
+  })();
+
+  return _initPromise;
 }
 
 export async function queryAll<T = Record<string, unknown>>(sql: string, ...params: unknown[]): Promise<T[]> {
-  ensureInit();
+  await ensureInit();
   return _queryAll<T>(sql, ...params);
 }
 
 export async function queryOne<T = Record<string, unknown>>(sql: string, ...params: unknown[]): Promise<T | undefined> {
-  ensureInit();
+  await ensureInit();
   return _queryOne<T>(sql, ...params);
 }
 
 export async function execute(sql: string, ...params: unknown[]): Promise<ExecResult> {
-  ensureInit();
+  await ensureInit();
   return _execute(sql, ...params);
 }
 
@@ -124,119 +138,134 @@ export function getDb(): Database.Database {
 // ---------------------------------------------------------------------------
 // Table init (SQLite only — Turso uses the same schema via dashboard/migration)
 // ---------------------------------------------------------------------------
+const SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS banners (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    image_url TEXT NOT NULL DEFAULT '',
+    mobile_image_url TEXT NOT NULL DEFAULT '',
+    link_url TEXT NOT NULL DEFAULT '',
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS notices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS press (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    link_url TEXT NOT NULL DEFAULT '',
+    file_url TEXT DEFAULT '',
+    notice_at TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS partners (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    logo_url TEXT NOT NULL DEFAULT '',
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    is_active INTEGER NOT NULL DEFAULT 1
+  );
+
+  CREATE TABLE IF NOT EXISTS investors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    logo_url TEXT NOT NULL DEFAULT '',
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    is_active INTEGER NOT NULL DEFAULT 1
+  );
+
+  CREATE TABLE IF NOT EXISTS stocks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    funble_cd TEXT NOT NULL UNIQUE,
+    funble_nm TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'end',
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    thumb_img_url TEXT DEFAULT '',
+    scr_price REAL DEFAULT 0,
+    total_issue_qty INTEGER DEFAULT 0,
+    list_at TEXT DEFAULT '',
+    extra_json TEXT DEFAULT '{}'
+  );
+
+  CREATE TABLE IF NOT EXISTS announcements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    stock_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT '',
+    content TEXT NOT NULL DEFAULT '',
+    file_url TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (stock_id) REFERENCES stocks(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS stock_prices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    stock_id INTEGER NOT NULL,
+    price REAL NOT NULL DEFAULT 0,
+    begin_price REAL DEFAULT 0,
+    end_price REAL DEFAULT 0,
+    high_price REAL DEFAULT 0,
+    low_price REAL DEFAULT 0,
+    deal_qty INTEGER DEFAULT 0,
+    date TEXT NOT NULL,
+    FOREIGN KEY (stock_id) REFERENCES stocks(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS faq_categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    code TEXT NOT NULL UNIQUE,
+    sort_order INTEGER NOT NULL DEFAULT 0
+  );
+
+  CREATE TABLE IF NOT EXISTS faqs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category_id INTEGER NOT NULL,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL DEFAULT '',
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (category_id) REFERENCES faq_categories(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS terms (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL,
+    version_date TEXT NOT NULL,
+    content TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(type, version_date)
+  );
+
+  CREATE TABLE IF NOT EXISTS admin_users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`;
+
 function initTables(raw: Database.Database) {
-  raw.exec(`
-    CREATE TABLE IF NOT EXISTS banners (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      image_url TEXT NOT NULL DEFAULT '',
-      mobile_image_url TEXT NOT NULL DEFAULT '',
-      link_url TEXT NOT NULL DEFAULT '',
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      is_active INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+  raw.exec(SCHEMA_SQL);
+}
 
-    CREATE TABLE IF NOT EXISTS notices (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      content TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT
-    );
+async function initTablesTurso(client: ReturnType<typeof createClient>) {
+  // libsql HTTP/WS clients don't support multi-statement exec reliably,
+  // so we execute each statement individually.
+  const statements = SCHEMA_SQL
+    .split(";")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
-    CREATE TABLE IF NOT EXISTS press (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      link_url TEXT NOT NULL DEFAULT '',
-      file_url TEXT DEFAULT '',
-      notice_at TEXT NOT NULL DEFAULT (datetime('now')),
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS partners (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      logo_url TEXT NOT NULL DEFAULT '',
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      is_active INTEGER NOT NULL DEFAULT 1
-    );
-
-    CREATE TABLE IF NOT EXISTS investors (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      logo_url TEXT NOT NULL DEFAULT '',
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      is_active INTEGER NOT NULL DEFAULT 1
-    );
-
-    CREATE TABLE IF NOT EXISTS stocks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      funble_cd TEXT NOT NULL UNIQUE,
-      funble_nm TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'end',
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      thumb_img_url TEXT DEFAULT '',
-      scr_price REAL DEFAULT 0,
-      total_issue_qty INTEGER DEFAULT 0,
-      list_at TEXT DEFAULT '',
-      extra_json TEXT DEFAULT '{}'
-    );
-
-    CREATE TABLE IF NOT EXISTS announcements (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      stock_id INTEGER NOT NULL,
-      title TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT '',
-      content TEXT NOT NULL DEFAULT '',
-      file_url TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (stock_id) REFERENCES stocks(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS stock_prices (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      stock_id INTEGER NOT NULL,
-      price REAL NOT NULL DEFAULT 0,
-      begin_price REAL DEFAULT 0,
-      end_price REAL DEFAULT 0,
-      high_price REAL DEFAULT 0,
-      low_price REAL DEFAULT 0,
-      deal_qty INTEGER DEFAULT 0,
-      date TEXT NOT NULL,
-      FOREIGN KEY (stock_id) REFERENCES stocks(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS faq_categories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      code TEXT NOT NULL UNIQUE,
-      sort_order INTEGER NOT NULL DEFAULT 0
-    );
-
-    CREATE TABLE IF NOT EXISTS faqs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      category_id INTEGER NOT NULL,
-      question TEXT NOT NULL,
-      answer TEXT NOT NULL DEFAULT '',
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      FOREIGN KEY (category_id) REFERENCES faq_categories(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS terms (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT NOT NULL,
-      version_date TEXT NOT NULL,
-      content TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      UNIQUE(type, version_date)
-    );
-
-    CREATE TABLE IF NOT EXISTS admin_users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-  `);
+  for (const stmt of statements) {
+    await client.execute({ sql: stmt });
+  }
 }

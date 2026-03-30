@@ -33,12 +33,14 @@ export default function SubscriptionSection() {
               src="/images/main/img_phone03.png"
               alt="펀블 청약 화면"
               fill
+              sizes="280px"
               className="object-contain"
             />
             <Image
               src="/images/main/img_phone03_2.png"
               alt="펀블 청약 화면 2"
               fill
+              sizes="280px"
               className="object-contain translate-x-8 translate-y-8"
             />
           </div>
