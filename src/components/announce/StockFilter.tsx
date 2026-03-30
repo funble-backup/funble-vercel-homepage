@@ -31,15 +31,17 @@ export default function StockFilter({
     <div className="space-y-4">
       {grouped.map((group) => (
         <div key={group.status}>
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-2">
-            {group.label}
-          </h3>
+          {grouped.length > 1 && (
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-2">
+              {group.label}
+            </h3>
+          )}
           <ul className="space-y-1">
             {group.items.map((stock) => (
               <li key={stock.id}>
                 <button
                   onClick={() => onSelectStock(stock.id)}
-                  className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                  className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors outline-none ${
                     selectedStockId === stock.id
                       ? "bg-primary text-white font-medium"
                       : "text-gray-700 hover:bg-gray-100"

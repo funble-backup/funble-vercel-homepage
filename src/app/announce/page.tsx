@@ -93,7 +93,6 @@ function AnnounceContent() {
   const fetchAnnouncements = useCallback(
     async (stockId: number, page: number) => {
       setAnnLoading(true);
-      setDetail(null);
       try {
         const res = await fetch(
           `/api/stocks/${stockId}/announcements?page=${page}`
@@ -163,29 +162,30 @@ function AnnounceContent() {
     router.push(buildUrl(selectedStockId), { scroll: false });
   }, [router, selectedStockId, buildUrl]);
 
-  // Load detail from URL param on mount
+  // Load detail from URL param on initial mount only
+  const [mountedWithDetail] = useState(() => !!urlId);
   useEffect(() => {
-    if (urlId) {
+    if (mountedWithDetail && urlId && !detail && !detailLoading) {
       fetchDetail(Number(urlId), false);
     }
-  }, [urlId, fetchDetail]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mountedWithDetail]);
 
+  // Fetch list data when stock or tab changes (only when not viewing detail)
   useEffect(() => {
-    if (!selectedStockId) return;
-    if (urlId) return; // don't reset if viewing detail from URL
-    setDetail(null);
+    if (!selectedStockId || detail) return;
     if (tab === "announce") {
       fetchAnnouncements(selectedStockId, 1);
     } else {
       fetchPrices(selectedStockId, 1);
     }
-  }, [selectedStockId, tab, fetchAnnouncements, fetchPrices, urlId]);
+  }, [selectedStockId, tab, detail, fetchAnnouncements, fetchPrices]);
 
   const handleSelectStock = (id: number) => {
     setSelectedStockId(id);
     setShowSidebar(false);
     setDetail(null);
-    router.push(buildUrl(id), { scroll: false });
+    router.replace(buildUrl(id), { scroll: false });
   };
 
   let files: FileItem[] = [];
