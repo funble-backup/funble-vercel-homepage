@@ -87,7 +87,7 @@ export default function FaqPage() {
         </h1>
       </section>
 
-      <section className="max-w-3xl mx-auto px-4 py-10">
+      <section className="max-w-4xl mx-auto px-4 py-10">
         {/* Search */}
         <div className="mb-10">
           <FaqSearch value={search} onChange={setSearch} />
