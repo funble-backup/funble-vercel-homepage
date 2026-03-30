@@ -58,9 +58,15 @@ export default function HeroBanner() {
           return (
             <SwiperSlide key={banner.id}>
               {banner.link_url ? (
-                <Link href={banner.link_url}>
-                  {content}
-                </Link>
+                banner.link_url.startsWith("http") ? (
+                  <a href={banner.link_url} target="_blank" rel="noopener noreferrer">
+                    {content}
+                  </a>
+                ) : (
+                  <Link href={banner.link_url}>
+                    {content}
+                  </Link>
+                )
               ) : (
                 content
               )}
