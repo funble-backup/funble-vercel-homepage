@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useMemo, useState, useCallback } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import DefaultEditor from "react-simple-wysiwyg";
 import type { FaqCategory, Faq } from "@/types";
@@ -49,6 +49,8 @@ function AdminFaqContent() {
 
   const [catForm, setCatForm] = useState({ name: "", code: "", sort_order: 0 });
   const [faqForm, setFaqForm] = useState({ category_id: 0, question: "", answer: "" });
+  const [faqSort, setFaqSort] = useState<{ key: "category" | "question"; dir: "asc" | "desc" } | null>(null);
+  const [faqSearch, setFaqSearch] = useState("");
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -75,9 +77,57 @@ function AdminFaqContent() {
     return () => clearTimeout(t);
   }, [loadAll]);
 
-  function getCategoryName(catId: number) {
-    return categories.find((c) => c.id === catId)?.name || "-";
-  }
+  const getCategoryName = useCallback(
+    (catId: number) => {
+      return categories.find((c) => c.id === catId)?.name || "-";
+    },
+    [categories],
+  );
+
+  const filteredFaqs = useMemo(() => {
+    const q = faqSearch.trim().toLowerCase();
+    if (!q) return faqs;
+    return faqs.filter((f) => {
+      const cat = getCategoryName(f.category_id).toLowerCase();
+      return (
+        cat.includes(q) ||
+        f.question.toLowerCase().includes(q) ||
+        f.answer.toLowerCase().includes(q)
+      );
+    });
+  }, [faqs, faqSearch, getCategoryName]);
+
+  const sortedFaqs = useMemo(() => {
+    if (!faqSort) return filteredFaqs;
+
+    const dirMul = faqSort.dir === "asc" ? 1 : -1;
+    const collator = new Intl.Collator("ko", { sensitivity: "base", numeric: true });
+
+    return [...filteredFaqs].sort((a, b) => {
+      const aCat = getCategoryName(a.category_id);
+      const bCat = getCategoryName(b.category_id);
+
+      if (faqSort.key === "category") {
+        const r = collator.compare(aCat, bCat);
+        if (r !== 0) return r * dirMul;
+        // tie-breaker: question
+        return collator.compare(a.question, b.question) * dirMul;
+      }
+
+      // key === "question"
+      const r = collator.compare(a.question, b.question);
+      if (r !== 0) return r * dirMul;
+      // tie-breaker: category
+      return collator.compare(aCat, bCat) * dirMul;
+    });
+  }, [filteredFaqs, faqSort, getCategoryName]);
+
+  const toggleFaqSort = useCallback((key: "category" | "question") => {
+    setFaqSort((prev) => {
+      if (!prev || prev.key !== key) return { key, dir: "asc" };
+      return { key, dir: prev.dir === "asc" ? "desc" : "asc" };
+    });
+  }, []);
 
   function openCreate(type: Tab) {
     setModalType(type);
@@ -152,12 +202,22 @@ function AdminFaqContent() {
       </div>
 
       <div className="mb-4 flex justify-end">
-        <button
-          onClick={() => openCreate(tab)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition-colors"
-        >
-          새로 추가
-        </button>
+        <div className="flex items-center gap-2">
+          {tab === "faqs" && (
+            <input
+              value={faqSearch}
+              onChange={(e) => setFaqSearch(e.target.value)}
+              placeholder="검색 (카테고리/질문/답변)"
+              className="w-72 max-w-[60vw] px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          )}
+          <button
+            onClick={() => openCreate(tab)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition-colors"
+          >
+            새로 추가
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -199,13 +259,31 @@ function AdminFaqContent() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">카테고리</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">질문</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">
+                    <button
+                      type="button"
+                      onClick={() => toggleFaqSort("category")}
+                      className="inline-flex items-center gap-1 hover:text-gray-800"
+                    >
+                      카테고리
+                      {faqSort?.key === "category" && <span className="text-[11px] text-gray-400">{faqSort.dir === "asc" ? "▲" : "▼"}</span>}
+                    </button>
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">
+                    <button
+                      type="button"
+                      onClick={() => toggleFaqSort("question")}
+                      className="inline-flex items-center gap-1 hover:text-gray-800"
+                    >
+                      질문
+                      {faqSort?.key === "question" && <span className="text-[11px] text-gray-400">{faqSort.dir === "asc" ? "▲" : "▼"}</span>}
+                    </button>
+                  </th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">관리</th>
                 </tr>
               </thead>
               <tbody>
-                {faqs.map((f) => (
+                {sortedFaqs.map((f) => (
                   <tr key={f.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-3 text-gray-500">{getCategoryName(f.category_id)}</td>
                     <td className="px-4 py-3 text-gray-800">{f.question}</td>
