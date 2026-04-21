@@ -29,7 +29,7 @@ export default function AdminDashboardPage() {
           announcements: 0,
           stockPrices: 0,
           faqCategories: Array.isArray(faqCats) ? faqCats.length : 0,
-          faqs: faqs.data?.length ?? 0,
+          faqs: Array.isArray(faqs) ? faqs.length : 0,
         });
       } catch {
         setCounts({

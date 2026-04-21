@@ -89,7 +89,6 @@ export interface Faq {
   category_id: number;
   question: string;
   answer: string;
-  sort_order: number;
 }
 
 export interface AdminUser {

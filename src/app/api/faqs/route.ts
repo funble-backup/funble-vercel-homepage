@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     params.push(term, term);
   }
 
-  query += " ORDER BY sort_order ASC";
+  query += " ORDER BY id ASC";
   const faqs = await queryAll<Faq>(query, ...params);
   return NextResponse.json(faqs);
 }

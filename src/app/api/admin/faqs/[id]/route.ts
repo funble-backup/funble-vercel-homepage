@@ -8,10 +8,10 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const { category_id, question, answer, sort_order } = await request.json();
+    const { category_id, question, answer } = await request.json();
     await execute(
-      "UPDATE faqs SET category_id = ?, question = ?, answer = ?, sort_order = ? WHERE id = ?",
-      category_id, question, answer, sort_order || 0, id);
+      "UPDATE faqs SET category_id = ?, question = ?, answer = ? WHERE id = ?",
+      category_id, question, answer, id);
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "오류가 발생했습니다." }, { status: 500 });

@@ -786,7 +786,6 @@ const swaggerSpec = {
           category_id: { type: "integer" },
           question: { type: "string" },
           answer: { type: "string" },
-          sort_order: { type: "integer" },
         },
       },
     },

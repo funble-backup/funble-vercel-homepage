@@ -1,13 +1,44 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import DefaultEditor from "react-simple-wysiwyg";
 import type { FaqCategory, Faq } from "@/types";
 
 type Tab = "categories" | "faqs";
 
+function tabFromSearchParam(raw: string | null): Tab {
+  if (raw === "faqs") return "faqs";
+  return "categories";
+}
+
 export default function AdminFaqPage() {
-  const [tab, setTab] = useState<Tab>("categories");
+  return (
+    <Suspense fallback={<p className="text-gray-500">로딩 중...</p>}>
+      <AdminFaqContent />
+    </Suspense>
+  );
+}
+
+function AdminFaqContent() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tab = tabFromSearchParam(searchParams.get("tab"));
+
+  const setTab = useCallback(
+    (next: Tab) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (next === "categories") {
+        params.delete("tab");
+      } else {
+        params.set("tab", "faqs");
+      }
+      const q = params.toString();
+      router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
   const [categories, setCategories] = useState<FaqCategory[]>([]);
   const [faqs, setFaqs] = useState<Faq[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,9 +48,9 @@ export default function AdminFaqPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
 
   const [catForm, setCatForm] = useState({ name: "", code: "", sort_order: 0 });
-  const [faqForm, setFaqForm] = useState({ category_id: 0, question: "", answer: "", sort_order: 0 });
+  const [faqForm, setFaqForm] = useState({ category_id: 0, question: "", answer: "" });
 
-  async function loadAll() {
+  const loadAll = useCallback(async () => {
     setLoading(true);
     try {
       const [catRes, faqRes] = await Promise.all([
@@ -29,22 +60,30 @@ export default function AdminFaqPage() {
       const catData = await catRes.json();
       const faqData = await faqRes.json();
       setCategories(Array.isArray(catData) ? catData : []);
-      setFaqs(faqData.data || []);
+      setFaqs(Array.isArray(faqData) ? faqData : []);
     } catch {
       /* empty */
     }
     setLoading(false);
-  }
+  }, []);
 
   useEffect(() => {
-    loadAll();
-  }, []);
+    // Avoid synchronous setState inside effect body (eslint rule in this repo)
+    const t = setTimeout(() => {
+      void loadAll();
+    }, 0);
+    return () => clearTimeout(t);
+  }, [loadAll]);
+
+  function getCategoryName(catId: number) {
+    return categories.find((c) => c.id === catId)?.name || "-";
+  }
 
   function openCreate(type: Tab) {
     setModalType(type);
     setEditingId(null);
     if (type === "categories") setCatForm({ name: "", code: "", sort_order: 0 });
-    if (type === "faqs") setFaqForm({ category_id: categories[0]?.id || 0, question: "", answer: "", sort_order: 0 });
+    if (type === "faqs") setFaqForm({ category_id: categories[0]?.id || 0, question: "", answer: "" });
     setShowModal(true);
   }
 
@@ -58,7 +97,7 @@ export default function AdminFaqPage() {
   function openEditFaq(f: Faq) {
     setModalType("faqs");
     setEditingId(f.id);
-    setFaqForm({ category_id: f.category_id, question: f.question, answer: f.answer, sort_order: f.sort_order });
+    setFaqForm({ category_id: f.category_id, question: f.question, answer: f.answer });
     setShowModal(true);
   }
 
@@ -87,10 +126,6 @@ export default function AdminFaqPage() {
     const url = type === "categories" ? `/api/admin/faq-categories/${id}` : `/api/admin/faqs/${id}`;
     await fetch(url, { method: "DELETE" });
     loadAll();
-  }
-
-  function getCategoryName(catId: number) {
-    return categories.find((c) => c.id === catId)?.name || "-";
   }
 
   return (
@@ -166,7 +201,6 @@ export default function AdminFaqPage() {
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">카테고리</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">질문</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">정렬</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">관리</th>
                 </tr>
               </thead>
@@ -175,7 +209,6 @@ export default function AdminFaqPage() {
                   <tr key={f.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-3 text-gray-500">{getCategoryName(f.category_id)}</td>
                     <td className="px-4 py-3 text-gray-800">{f.question}</td>
-                    <td className="px-4 py-3 text-gray-500">{f.sort_order}</td>
                     <td className="px-4 py-3 text-right space-x-2">
                       <button onClick={() => openEditFaq(f)} className="text-blue-600 hover:underline">수정</button>
                       <button onClick={() => handleDelete("faqs", f.id)} className="text-red-500 hover:underline">삭제</button>
@@ -183,7 +216,7 @@ export default function AdminFaqPage() {
                   </tr>
                 ))}
                 {faqs.length === 0 && (
-                  <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">FAQ가 없습니다.</td></tr>
+                  <tr><td colSpan={3} className="px-4 py-8 text-center text-gray-400">FAQ가 없습니다.</td></tr>
                 )}
               </tbody>
             </table>
@@ -193,12 +226,16 @@ export default function AdminFaqPage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div
+            className={`bg-white rounded-lg shadow-lg w-full mx-auto flex flex-col max-h-[min(90vh,900px)] ${
+              modalType === "faqs" ? "max-w-3xl" : "max-w-lg"
+            }`}
+          >
+            <h3 className="text-lg font-bold text-gray-800 px-6 pt-6 pb-2 shrink-0 border-b border-gray-100">
               {editingId ? "수정" : "새로 추가"}
             </h3>
-            <div className="space-y-3">
+            <div className="space-y-3 px-6 py-4 overflow-y-auto min-h-0 flex-1">
               {modalType === "categories" && (
                 <>
                   <div>
@@ -218,31 +255,38 @@ export default function AdminFaqPage() {
               {modalType === "faqs" && (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">카테고리</label>
-                    <select value={faqForm.category_id} onChange={(e) => setFaqForm({ ...faqForm, category_id: Number(e.target.value) })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">질문</label>
                     <input type="text" value={faqForm.question} onChange={(e) => setFaqForm({ ...faqForm, question: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">답변</label>
-                    <DefaultEditor
-                      value={faqForm.answer}
-                      onChange={(e) => setFaqForm({ ...faqForm, answer: e.target.value })}
-                      style={{ minHeight: "200px" }}
-                    />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">카테고리</label>
+                    <select
+                      value={faqForm.category_id}
+                      onChange={(e) => setFaqForm({ ...faqForm, category_id: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={categories.length === 0}
+                    >
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">정렬 순서</label>
-                    <input type="number" value={faqForm.sort_order} onChange={(e) => setFaqForm({ ...faqForm, sort_order: Number(e.target.value) })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">답변</label>
+                    {/* rsw-editor에 max-height를 주면 툴바는 고정되고 .rsw-ce 영역만 스크롤됨 */}
+                    <div className="[&_.rsw-editor]:max-h-[min(50vh,420px)] [&_.rsw-editor]:min-h-[200px] [&_.rsw-ce]:min-h-0">
+                      <DefaultEditor
+                        value={faqForm.answer}
+                        onChange={(e) => setFaqForm({ ...faqForm, answer: e.target.value })}
+                      />
+                    </div>
                   </div>
                 </>
               )}
             </div>
-            <div className="flex justify-end gap-2 mt-4">
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/80 shrink-0 rounded-b-lg">
               <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">취소</button>
               <button onClick={handleSave} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700">저장</button>
             </div>
