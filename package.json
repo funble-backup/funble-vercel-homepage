@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "mirror-announcement-pdfs": "npx tsx scripts/mirror-announcement-pdfs.ts"
+    "mirror-announcement-pdfs": "npx tsx scripts/mirror-announcement-pdfs.ts",
+    "upsert-funble-notice-turso": "npx tsx scripts/upsert-funble-notice-turso.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.17.2",
