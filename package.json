@@ -7,7 +7,8 @@
     "dev:webpack": "next dev --webpack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "mirror-announcement-pdfs": "npx tsx scripts/mirror-announcement-pdfs.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.17.2",

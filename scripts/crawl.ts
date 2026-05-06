@@ -1,6 +1,10 @@
 import Database from "better-sqlite3";
 import path from "path";
 import bcrypt from "bcryptjs";
+import {
+  downloadMissingPdfsAndLocalize,
+  type AnnouncementFileItem,
+} from "../src/lib/announcement-pdf-local";
 
 const DB_PATH = path.join(process.cwd(), "funble.db");
 const BASE_URL = "https://www.funble.kr";
@@ -227,7 +231,7 @@ async function crawlStockDetails(stocks: Array<{ funbleCd: string }>) {
           // detail fetch failed, continue with empty content
         }
 
-        annStmt.run(
+        const runResult = annStmt.run(
           stockRow.id,
           disc.title || "",
           disc.disclosureCodKo || disc.disclosureCod || "",
@@ -235,6 +239,24 @@ async function crawlStockDetails(stocks: Array<{ funbleCd: string }>) {
           fileUrl,
           disc.createdAt || new Date().toISOString()
         );
+        const newAnnId = Number(runResult.lastInsertRowid);
+        if (fileUrl && newAnnId) {
+          try {
+            const items = JSON.parse(fileUrl) as AnnouncementFileItem[];
+            if (Array.isArray(items) && items.length > 0) {
+              const localized = await downloadMissingPdfsAndLocalize(newAnnId, items);
+              db.prepare("UPDATE announcements SET file_url = ? WHERE id = ?").run(
+                JSON.stringify(localized),
+                newAnnId
+              );
+            }
+          } catch (e) {
+            console.error(
+              `  -> [${funbleCd}] announcement ${newAnnId} pdf localize failed`,
+              e
+            );
+          }
+        }
         detailCount++;
       }
       console.log(`  -> ${funbleCd}: ${detailCount} announcements (with detail)`);
