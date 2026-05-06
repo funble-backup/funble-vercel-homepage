@@ -111,7 +111,7 @@ function AnnounceContent() {
         const data: PaginatedResponse<Announcement> = await res.json();
         setAnnouncements(data.data);
         setAnnPage(data.page);
-        setAnnTotalPages(Math.ceil((data.totalCount ?? 0) / 7));
+        setAnnTotalPages(Math.ceil((data.totalCount ?? 0) / 20));
       } catch {
         setAnnouncements([]);
       } finally {

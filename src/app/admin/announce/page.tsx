@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import DefaultEditor from "react-simple-wysiwyg";
+import R2Wysiwyg from "@/components/R2Wysiwyg";
 import type { Stock, Announcement, StockPrice } from "@/types";
 
 type Tab = "stocks" | "announcements" | "prices";
+
+const ANN_PAGE_SIZE = 20;
 
 export default function AdminAnnouncePage() {
   const [tab, setTab] = useState<Tab>("stocks");
@@ -12,6 +14,14 @@ export default function AdminAnnouncePage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [prices, setPrices] = useState<StockPrice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [annStockId, setAnnStockId] = useState<number>(0);
+  const [annPage, setAnnPage] = useState(1);
+  const [annTotalPages, setAnnTotalPages] = useState(1);
+  const [annLoading, setAnnLoading] = useState(false);
+  const [priceStockId, setPriceStockId] = useState<number>(0);
+  const [pricePage, setPricePage] = useState(1);
+  const [priceHasNext, setPriceHasNext] = useState(false);
+  const [priceLoading, setPriceLoading] = useState(false);
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -24,30 +34,63 @@ export default function AdminAnnouncePage() {
   const [uploading, setUploading] = useState(false);
   const [priceForm, setPriceForm] = useState({ stock_id: 0, price: 0, begin_price: 0, end_price: 0, high_price: 0, low_price: 0, deal_qty: 0, date: "" });
 
+  async function loadAnnouncements(nextStockId: number, page: number) {
+    if (!nextStockId) {
+      setAnnouncements([]);
+      setAnnPage(1);
+      setAnnTotalPages(1);
+      return;
+    }
+
+    setAnnLoading(true);
+    try {
+      const res = await fetch(`/api/stocks/${nextStockId}/announcements?page=${page}`);
+      const data = await res.json();
+      const nextRows: Announcement[] = data?.data || [];
+      const totalCount = Number(data?.totalCount || 0);
+
+      setAnnouncements(nextRows);
+      setAnnPage(data?.page || page);
+      setAnnTotalPages(Math.max(1, Math.ceil(totalCount / ANN_PAGE_SIZE)));
+    } finally {
+      setAnnLoading(false);
+    }
+  }
+
+  async function loadPrices(nextStockId: number, page: number, mode: "replace" | "append" = "replace") {
+    if (!nextStockId) {
+      setPrices([]);
+      setPricePage(1);
+      setPriceHasNext(false);
+      return;
+    }
+
+    setPriceLoading(true);
+    try {
+      const res = await fetch(`/api/stocks/${nextStockId}/prices?page=${page}`);
+      const data = await res.json();
+      const nextRows: StockPrice[] = data?.data || [];
+
+      setPrices((prev) => (mode === "append" ? [...prev, ...nextRows] : nextRows));
+      setPricePage(data?.page || page);
+      setPriceHasNext(Boolean(data?.hasNext));
+    } finally {
+      setPriceLoading(false);
+    }
+  }
+
   async function loadAll() {
     setLoading(true);
     try {
       const stockRes = await fetch("/api/stocks");
       const stockData = await stockRes.json();
-      setStocks(Array.isArray(stockData) ? stockData : []);
+      const nextStocks = Array.isArray(stockData) ? stockData : [];
+      setStocks(nextStocks);
+      const defaultStockId = nextStocks[0]?.id || 0;
+      setPriceStockId((prev) => prev || defaultStockId);
+      setAnnStockId((prev) => prev || defaultStockId);
 
-      // Load announcements for all stocks
-      if (stockData.length > 0) {
-        const allAnn: Announcement[] = [];
-        const allPrices: StockPrice[] = [];
-        for (const s of stockData.slice(0, 20)) {
-          const [annRes, priceRes] = await Promise.all([
-            fetch(`/api/stocks/${s.id}/announcements?page=1&limit=100`),
-            fetch(`/api/stocks/${s.id}/prices?page=1&limit=100`),
-          ]);
-          const annData = await annRes.json();
-          const priceData = await priceRes.json();
-          allAnn.push(...(annData.data || []));
-          allPrices.push(...(priceData.data || []));
-        }
-        setAnnouncements(allAnn);
-        setPrices(allPrices);
-      }
+      // 공시는 종목 선택 후 페이지 단위로 로드
     } catch {
       /* empty */
     }
@@ -55,15 +98,28 @@ export default function AdminAnnouncePage() {
   }
 
   useEffect(() => {
-    loadAll();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadAll();
   }, []);
+
+  useEffect(() => {
+    if (!priceStockId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadPrices(priceStockId, 1, "replace");
+  }, [priceStockId]);
+
+  useEffect(() => {
+    if (!annStockId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadAnnouncements(annStockId, 1);
+  }, [annStockId]);
 
   function openCreate(type: Tab) {
     setModalType(type);
     setEditingId(null);
     if (type === "stocks") setStockForm({ funble_cd: "", funble_nm: "", status: "end", sort_order: 0 });
-    if (type === "announcements") setAnnForm({ stock_id: stocks[0]?.id || 0, title: "", category: "", content: "", file_url: "" });
-    if (type === "prices") setPriceForm({ stock_id: stocks[0]?.id || 0, price: 0, begin_price: 0, end_price: 0, high_price: 0, low_price: 0, deal_qty: 0, date: "" });
+    if (type === "announcements") setAnnForm({ stock_id: annStockId || stocks[0]?.id || 0, title: "", category: "", content: "", file_url: "" });
+    if (type === "prices") setPriceForm({ stock_id: priceStockId || stocks[0]?.id || 0, price: 0, begin_price: 0, end_price: 0, high_price: 0, low_price: 0, deal_qty: 0, date: "" });
     setShowModal(true);
   }
 
@@ -111,6 +167,12 @@ export default function AdminAnnouncePage() {
     }
     setShowModal(false);
     loadAll();
+    if (modalType === "announcements") {
+      loadAnnouncements(annStockId, 1);
+    }
+    if (modalType === "prices") {
+      loadPrices(priceStockId, 1, "replace");
+    }
   }
 
   async function handleDelete(type: Tab, id: number) {
@@ -118,6 +180,12 @@ export default function AdminAnnouncePage() {
     const urlMap = { stocks: "/api/admin/stocks", announcements: "/api/admin/announcements", prices: "/api/admin/stock-prices" };
     await fetch(`${urlMap[type]}/${id}`, { method: "DELETE" });
     loadAll();
+    if (type === "announcements") {
+      loadAnnouncements(annStockId, annPage);
+    }
+    if (type === "prices") {
+      loadPrices(priceStockId, 1, "replace");
+    }
   }
 
   const tabs: { key: Tab; label: string }[] = [
@@ -128,6 +196,19 @@ export default function AdminAnnouncePage() {
 
   function getStockName(stockId: number) {
     return stocks.find((s) => s.id === stockId)?.funble_nm || "-";
+  }
+
+  function getAnnouncementDownload(fileUrl?: string | null) {
+    if (!fileUrl || !fileUrl.trim()) return null;
+    try {
+      const parsed = JSON.parse(fileUrl) as Array<{ name?: string; url?: string }>;
+      if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0]?.url === "string" && parsed[0].url.trim()) {
+        return { url: parsed[0].url, label: parsed[0].name || "다운로드" };
+      }
+    } catch {
+      /* ignore */
+    }
+    return { url: fileUrl, label: "다운로드" };
   }
 
   return (
@@ -200,79 +281,185 @@ export default function AdminAnnouncePage() {
           )}
 
           {tab === "announcements" && (
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">종목</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">제목</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">분류</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">날짜</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">첨부</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">관리</th>
-                </tr>
-              </thead>
-              <tbody>
-                {announcements.map((a) => (
-                  <tr key={a.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-500">{getStockName(a.stock_id)}</td>
-                    <td className="px-4 py-3 text-gray-800">{a.title}</td>
-                    <td className="px-4 py-3 text-gray-500">{a.category}</td>
-                    <td className="px-4 py-3 text-gray-500">{a.created_at?.slice(0, 10)}</td>
-                    <td className="px-4 py-3 text-gray-500">
-                      {a.file_url ? (
-                        <a href={a.file_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">다운로드</a>
-                      ) : "-"}
-                    </td>
-                    <td className="px-4 py-3 text-right space-x-2">
-                      <button onClick={() => openEditAnn(a)} className="text-blue-600 hover:underline">수정</button>
-                      <button onClick={() => handleDelete("announcements", a.id)} className="text-red-500 hover:underline">삭제</button>
-                    </td>
+            <div>
+              <div className="flex flex-wrap items-center gap-2 px-4 py-3 bg-gray-50 border-b border-gray-200">
+                <div className="text-sm font-medium text-gray-700">종목</div>
+                <select
+                  value={annStockId}
+                  onChange={(e) => {
+                    const nextId = Number(e.target.value);
+                    setAnnStockId(nextId);
+                    setAnnPage(1);
+                    setAnnTotalPages(1);
+                  }}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {stocks.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.funble_nm}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex-1" />
+                <button
+                  type="button"
+                  onClick={() => loadAnnouncements(annStockId, 1)}
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-white"
+                >
+                  {annLoading ? "로딩 중..." : "새로고침"}
+                </button>
+              </div>
+
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-medium text-gray-600">종목</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-600">제목</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-600">분류</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-600">날짜</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-600">첨부</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-600">관리</th>
                   </tr>
-                ))}
-                {announcements.length === 0 && (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">공시가 없습니다.</td></tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {annLoading && announcements.length === 0 ? (
+                    <tr><td colSpan={6} className="px-4 py-10 text-center text-gray-400">로딩 중...</td></tr>
+                  ) : null}
+                  {announcements.map((a) => (
+                    <tr key={a.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3 text-gray-500">{getStockName(a.stock_id)}</td>
+                      <td className="px-4 py-3 text-gray-800">{a.title}</td>
+                      <td className="px-4 py-3 text-gray-500">{a.category}</td>
+                      <td className="px-4 py-3 text-gray-500">{a.created_at?.slice(0, 10)}</td>
+                      <td className="px-4 py-3 text-gray-500">
+                        {(() => {
+                          const f = getAnnouncementDownload(a.file_url);
+                          return f ? (
+                            <a href={f.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">
+                              {f.label}
+                            </a>
+                          ) : (
+                            "-"
+                          );
+                        })()}
+                      </td>
+                      <td className="px-4 py-3 text-right space-x-2">
+                        <button onClick={() => openEditAnn(a)} className="text-blue-600 hover:underline">수정</button>
+                        <button onClick={() => handleDelete("announcements", a.id)} className="text-red-500 hover:underline">삭제</button>
+                      </td>
+                    </tr>
+                  ))}
+                  {!annLoading && announcements.length === 0 && (
+                    <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">공시가 없습니다.</td></tr>
+                  )}
+                </tbody>
+              </table>
+
+              <div className="px-4 py-3 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => loadAnnouncements(annStockId, Math.max(1, annPage - 1))}
+                  disabled={annLoading || annPage <= 1}
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                >
+                  이전
+                </button>
+                <div className="text-sm text-gray-500">
+                  {annTotalPages <= 1 ? `페이지 ${annPage}` : `페이지 ${annPage} / ${annTotalPages}`}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => loadAnnouncements(annStockId, Math.min(annTotalPages, annPage + 1))}
+                  disabled={annLoading || annPage >= annTotalPages}
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                >
+                  다음
+                </button>
+              </div>
+            </div>
           )}
 
           {tab === "prices" && (
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">종목</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">기준가</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">시가</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">종가</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">고가</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">저가</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">거래량</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">기준일</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">관리</th>
-                </tr>
-              </thead>
-              <tbody>
-                {prices.map((p) => (
-                  <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-500">{getStockName(p.stock_id)}</td>
-                    <td className="px-4 py-3 text-right text-gray-800">{p.price?.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right text-gray-500">{p.begin_price?.toLocaleString() || "-"}</td>
-                    <td className="px-4 py-3 text-right text-gray-500">{p.end_price?.toLocaleString() || "-"}</td>
-                    <td className="px-4 py-3 text-right text-gray-500">{p.high_price?.toLocaleString() || "-"}</td>
-                    <td className="px-4 py-3 text-right text-gray-500">{p.low_price?.toLocaleString() || "-"}</td>
-                    <td className="px-4 py-3 text-right text-gray-500">{p.deal_qty?.toLocaleString() || "-"}</td>
-                    <td className="px-4 py-3 text-gray-500">{p.date}</td>
-                    <td className="px-4 py-3 text-right space-x-2">
-                      <button onClick={() => openEditPrice(p)} className="text-blue-600 hover:underline">수정</button>
-                      <button onClick={() => handleDelete("prices", p.id)} className="text-red-500 hover:underline">삭제</button>
-                    </td>
+            <div>
+              <div className="flex flex-wrap items-center gap-2 px-4 py-3 bg-gray-50 border-b border-gray-200">
+                <div className="text-sm font-medium text-gray-700">종목</div>
+                <select
+                  value={priceStockId}
+                  onChange={(e) => {
+                    const nextId = Number(e.target.value);
+                    setPriceStockId(nextId);
+                    setPricePage(1);
+                    setPriceHasNext(false);
+                  }}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {stocks.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.funble_nm}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex-1" />
+                <button
+                  type="button"
+                  onClick={() => loadPrices(priceStockId, 1, "replace")}
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-white"
+                >
+                  {priceLoading ? "로딩 중..." : "새로고침"}
+                </button>
+              </div>
+
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-medium text-gray-600">기준일</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-600">기준가</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-600">시가</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-600">종가</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-600">고가</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-600">저가</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-600">거래량</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-600">관리</th>
                   </tr>
-                ))}
-                {prices.length === 0 && (
-                  <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">기준가가 없습니다.</td></tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {priceLoading && prices.length === 0 ? (
+                    <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400">로딩 중...</td></tr>
+                  ) : null}
+                  {prices.map((p) => (
+                    <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3 text-gray-500">{p.date}</td>
+                      <td className="px-4 py-3 text-right text-gray-800">{p.price?.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-right text-gray-500">{p.begin_price?.toLocaleString() || "-"}</td>
+                      <td className="px-4 py-3 text-right text-gray-500">{p.end_price?.toLocaleString() || "-"}</td>
+                      <td className="px-4 py-3 text-right text-gray-500">{p.high_price?.toLocaleString() || "-"}</td>
+                      <td className="px-4 py-3 text-right text-gray-500">{p.low_price?.toLocaleString() || "-"}</td>
+                      <td className="px-4 py-3 text-right text-gray-500">{p.deal_qty?.toLocaleString() || "-"}</td>
+                      <td className="px-4 py-3 text-right space-x-2">
+                        <button onClick={() => openEditPrice(p)} className="text-blue-600 hover:underline">수정</button>
+                        <button onClick={() => handleDelete("prices", p.id)} className="text-red-500 hover:underline">삭제</button>
+                      </td>
+                    </tr>
+                  ))}
+                  {!priceLoading && prices.length === 0 && (
+                    <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">기준가가 없습니다.</td></tr>
+                  )}
+                </tbody>
+              </table>
+
+              {priceHasNext && (
+                <div className="px-4 py-3 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => loadPrices(priceStockId, pricePage + 1, "append")}
+                    disabled={priceLoading}
+                    className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    {priceLoading ? "로딩 중..." : "더 보기"}
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -323,10 +510,10 @@ export default function AdminAnnouncePage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">내용</label>
-                    <DefaultEditor
+                    <R2Wysiwyg
                       value={annForm.content}
                       onChange={(e) => setAnnForm({ ...annForm, content: e.target.value })}
-                      style={{ minHeight: "200px" }}
+                      minHeightPx={200}
                     />
                   </div>
                   <div>

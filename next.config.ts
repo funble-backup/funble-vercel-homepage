@@ -9,7 +9,9 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       // Cloudflare R2 public development URL (r2.dev)
-      { protocol: "https", hostname: "*.r2.dev" },
+      // Next image remotePatterns expects glob-style host matching and a pathname.
+      // This allows pub-xxxx.r2.dev (and other subdomains) to be optimized.
+      { protocol: "https", hostname: "**.r2.dev", pathname: "/**" },
       // (Optional) custom CDN domains can be added here later if needed.
     ],
   },

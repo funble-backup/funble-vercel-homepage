@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import DefaultEditor from "react-simple-wysiwyg";
+import R2Wysiwyg from "@/components/R2Wysiwyg";
 import type { Notice } from "@/types";
 
 export default function AdminNoticesPage() {
@@ -125,7 +125,7 @@ export default function AdminNoticesPage() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-gray-800 mb-4">
               {editing ? "공지사항 수정" : "새 공지사항"}
             </h3>
@@ -141,11 +141,13 @@ export default function AdminNoticesPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">내용</label>
-                <DefaultEditor
-                  value={form.content}
-                  onChange={(e) => setForm({ ...form, content: e.target.value })}
-                  style={{ minHeight: "200px" }}
-                />
+                <div className="max-h-[60vh] overflow-y-auto rounded-md border border-gray-200">
+                  <R2Wysiwyg
+                    value={form.content}
+                    onChange={(e) => setForm({ ...form, content: e.target.value })}
+                    minHeightPx={240}
+                  />
+                </div>
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-4">

@@ -3,7 +3,7 @@ import { queryAll, queryOne } from "@/lib/db";
 import { localizeAnnouncementFileUrlJson } from "@/lib/announcement-pdf-local";
 import type { Announcement, PaginatedResponse } from "@/types";
 
-const PAGE_SIZE = 7;
+const PAGE_SIZE = 20;
 
 export async function GET(
   request: NextRequest,
