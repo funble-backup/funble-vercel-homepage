@@ -6,6 +6,13 @@ const nextConfig: NextConfig = {
   outputFileTracingExcludes: {
     "/*": ["./public/announcements-pdfs/**/*"],
   },
+  images: {
+    remotePatterns: [
+      // Cloudflare R2 public development URL (r2.dev)
+      { protocol: "https", hostname: "*.r2.dev" },
+      // (Optional) custom CDN domains can be added here later if needed.
+    ],
+  },
 };
 
 export default nextConfig;

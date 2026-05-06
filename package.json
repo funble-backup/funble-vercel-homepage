@@ -9,11 +9,14 @@
     "start": "next start",
     "lint": "eslint",
     "mirror-announcement-pdfs": "npx tsx scripts/mirror-announcement-pdfs.ts",
+    "migrate-announcement-pdfs-to-r2": "npx tsx scripts/migrate-announcement-pdfs-to-r2.ts",
     "upsert-funble-notice-turso": "npx tsx scripts/upsert-funble-notice-turso.ts",
     "upsert-funble-disclosure-turso": "npx tsx scripts/upsert-funble-disclosure-turso.ts",
-    "sync-funble-stock-prices-turso": "npx tsx scripts/sync-funble-stock-prices-turso.ts"
+    "sync-funble-stock-prices-turso": "npx tsx scripts/sync-funble-stock-prices-turso.ts",
+    "migrate-banner-uploads-to-r2": "npx tsx scripts/migrate-banner-uploads-to-r2.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1043.0",
     "@libsql/client": "^0.17.2",
     "@types/aos": "^3.0.7",
     "aos": "^2.3.4",

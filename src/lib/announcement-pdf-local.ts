@@ -59,9 +59,57 @@ export async function downloadPdf(url: string): Promise<Buffer> {
   return Buffer.from(await res.arrayBuffer());
 }
 
+function normalizeAssetBase(raw: string): string {
+  return raw.trim().replace(/\/+$/, "");
+}
+
+function assetBasePrefixesFromEnv(): string[] {
+  const bases = [
+    process.env.ANNOUNCEMENTS_ASSET_BASE_URL,
+    process.env.R2_PUBLIC_BASE_URL,
+  ]
+    .filter(Boolean)
+    .map((s) => normalizeAssetBase(s!));
+  return [...new Set(bases)];
+}
+
+function assetHostsFromEnv(): Set<string> {
+  const raw = process.env.ANNOUNCEMENTS_ASSET_HOSTS || "";
+  const set = new Set<string>();
+  for (const h of raw.split(",")) {
+    const t = h.trim().toLowerCase();
+    if (t) set.add(t);
+  }
+  return set;
+}
+
+/**
+ * PDFs already served from R2 / CDN should not be re-downloaded into public/ on admin save.
+ * Configure via ANNOUNCEMENTS_ASSET_BASE_URL or R2_PUBLIC_BASE_URL (prefix match),
+ * ANNOUNCEMENTS_ASSET_HOSTS (comma-separated hostnames), or rely on *.r2.dev host detection.
+ */
+export function isAnnouncementAssetHostedOnCdn(url: string): boolean {
+  if (!url?.trim()) return false;
+  let parsed: URL;
+  try {
+    parsed = new URL(resolveFetchUrl(url));
+  } catch {
+    return false;
+  }
+  const host = parsed.hostname.toLowerCase();
+  if (host.endsWith(".r2.dev")) return true;
+  if (assetHostsFromEnv().has(host)) return true;
+  const full = `${parsed.origin}${parsed.pathname}`;
+  for (const base of assetBasePrefixesFromEnv()) {
+    if (full === base || full.startsWith(`${base}/`)) return true;
+  }
+  return false;
+}
+
 function shouldMirrorFromRemote(url: string): boolean {
   if (!url?.trim()) return false;
   if (isLocalAnnouncementsPath(url)) return false;
+  if (isAnnouncementAssetHostedOnCdn(url)) return false;
   return true;
 }
 
