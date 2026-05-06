@@ -26,6 +26,7 @@ export default function TaxSection() {
               src="/images/main/collect-detail.png"
               alt="펀블 세금 안내"
               fill
+              sizes="(max-width: 768px) 90vw, 360px"
               className="object-contain"
             />
           </div>

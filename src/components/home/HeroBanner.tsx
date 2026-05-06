@@ -30,28 +30,34 @@ export default function HeroBanner() {
         className="w-full"
       >
         {banners.map((banner, i) => {
+          const mobileSrc = banner.mobile_image_url || banner.image_url;
           const content = (
             <div className="relative w-full h-[calc(100vh-5rem)] bg-gray-100">
-              {/* PC 이미지 */}
-              {banner.image_url && (
-                <Image
-                  src={banner.image_url}
-                  alt={banner.title}
-                  fill
-                  sizes="100vw"
-                  className="object-cover hidden md:block"
-                  priority={i === 0}
-                />
-              )}
-              {/* 모바일 이미지 */}
-              <Image
-                src={banner.mobile_image_url || banner.image_url}
-                alt={banner.title}
-                fill
-                sizes="100vw"
-                className="object-cover md:hidden"
-                priority={i === 0}
-              />
+              {/* PC: display:none이면 fill+sizes 측정이 어긋나 레이아웃별 래퍼로 분리 */}
+              {banner.image_url ? (
+                <div className="absolute inset-0 hidden md:block">
+                  <Image
+                    src={banner.image_url}
+                    alt={banner.title}
+                    fill
+                    sizes="100vw"
+                    className="object-cover"
+                    priority={i === 0}
+                  />
+                </div>
+              ) : null}
+              {mobileSrc ? (
+                <div className="absolute inset-0 md:hidden">
+                  <Image
+                    src={mobileSrc}
+                    alt={banner.title}
+                    fill
+                    sizes="100vw"
+                    className="object-cover"
+                    priority={i === 0}
+                  />
+                </div>
+              ) : null}
             </div>
           );
 

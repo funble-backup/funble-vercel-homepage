@@ -117,13 +117,13 @@ export default function AdminBannersPage() {
                 <div className="flex gap-3 flex-shrink-0">
                   {b.image_url && (
                     <div className="relative w-40 h-20 rounded overflow-hidden border border-gray-200">
-                      <Image src={b.image_url} alt={b.title} fill className="object-cover" />
+                      <Image src={b.image_url} alt={b.title} fill sizes="160px" className="object-cover" />
                       <span className="absolute bottom-0 left-0 bg-black/60 text-white text-[10px] px-1">PC</span>
                     </div>
                   )}
                   {b.mobile_image_url && (
                     <div className="relative w-20 h-20 rounded overflow-hidden border border-gray-200">
-                      <Image src={b.mobile_image_url} alt={b.title} fill className="object-cover" />
+                      <Image src={b.mobile_image_url} alt={b.title} fill sizes="80px" className="object-cover" />
                       <span className="absolute bottom-0 left-0 bg-black/60 text-white text-[10px] px-1">Mobile</span>
                     </div>
                   )}
@@ -174,7 +174,7 @@ export default function AdminBannersPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">PC 이미지</label>
                 {form.image_url && (
                   <div className="relative w-full h-32 mb-2 rounded overflow-hidden border border-gray-200">
-                    <Image src={form.image_url} alt="PC 배너" fill className="object-cover" />
+                    <Image src={form.image_url} alt="PC 배너" fill sizes="512px" className="object-cover" />
                     <button
                       type="button"
                       onClick={() => setForm({ ...form, image_url: "" })}
@@ -201,7 +201,7 @@ export default function AdminBannersPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">모바일 이미지</label>
                 {form.mobile_image_url && (
                   <div className="relative w-40 h-32 mb-2 rounded overflow-hidden border border-gray-200">
-                    <Image src={form.mobile_image_url} alt="모바일 배너" fill className="object-cover" />
+                    <Image src={form.mobile_image_url} alt="모바일 배너" fill sizes="160px" className="object-cover" />
                     <button
                       type="button"
                       onClick={() => setForm({ ...form, mobile_image_url: "" })}

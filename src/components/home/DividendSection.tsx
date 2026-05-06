@@ -15,12 +15,14 @@ export default function DividendSection() {
               src="/images/main/img_phone05.png"
               alt="펀블 배당 화면"
               fill
+              sizes="280px"
               className="object-contain"
             />
             <Image
               src="/images/main/img_phone05_2.png"
               alt="펀블 배당 화면 2"
               fill
+              sizes="280px"
               className="object-contain translate-x-8 translate-y-8"
             />
           </div>

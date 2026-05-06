@@ -28,13 +28,15 @@ export default function PartnersSection() {
               key={logo}
               className="bg-white rounded-xl h-20 flex items-center justify-center border border-gray-100 p-3"
             >
-              <Image
-                src={`/images/partners/${logo}`}
-                alt={logo.replace('.jpg', '')}
-                width={120}
-                height={48}
-                className="object-contain max-h-10"
-              />
+              <div className="relative h-10 w-[120px]">
+                <Image
+                  src={`/images/partners/${logo}`}
+                  alt={logo.replace(".jpg", "")}
+                  fill
+                  sizes="120px"
+                  className="object-contain"
+                />
+              </div>
             </div>
           ))}
         </div>

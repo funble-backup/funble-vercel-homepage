@@ -32,6 +32,7 @@ export default function MainTagline() {
               src="/images/main/img_phone01.png"
               alt="펀블 앱 화면"
               fill
+              priority
               sizes="280px"
               className="object-contain"
             />

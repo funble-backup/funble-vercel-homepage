@@ -22,6 +22,7 @@ export default function FunblePage() {
           src="/images/funble/img_sVisual_01.jpg"
           alt="펀블 소개"
           fill
+          sizes="100vw"
           className="object-cover object-top"
           priority
         />
@@ -60,6 +61,7 @@ export default function FunblePage() {
                   src="/images/funble/img_funble02_01.jpg"
                   alt="Fair Opportunity"
                   fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
                   className="object-cover"
                 />
               </div>
@@ -85,6 +87,7 @@ export default function FunblePage() {
                   src="/images/funble/img_funble02_02.jpg"
                   alt="Safe &amp; Transparent"
                   fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
                   className="object-cover"
                 />
               </div>
@@ -110,6 +113,7 @@ export default function FunblePage() {
                   src="/images/funble/img_funble02_03.jpg"
                   alt="Easy &amp; Fun"
                   fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
                   className="object-cover"
                 />
               </div>

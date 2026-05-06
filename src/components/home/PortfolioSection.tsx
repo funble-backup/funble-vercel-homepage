@@ -19,13 +19,31 @@ export default function PortfolioSection() {
         </p>
         <div className="grid grid-cols-3 gap-4 md:gap-8 max-w-3xl mx-auto">
           <div className="relative aspect-[3/4]">
-            <Image src="/images/main/img_portfolio01.png" alt="포트폴리오 1" fill className="object-contain" />
+            <Image
+              src="/images/main/img_portfolio01.png"
+              alt="포트폴리오 1"
+              fill
+              sizes="(max-width: 768px) 33vw, 240px"
+              className="object-contain"
+            />
           </div>
           <div className="relative aspect-[3/4]">
-            <Image src="/images/main/img_portfolio02.png" alt="포트폴리오 2" fill className="object-contain" />
+            <Image
+              src="/images/main/img_portfolio02.png"
+              alt="포트폴리오 2"
+              fill
+              sizes="(max-width: 768px) 33vw, 240px"
+              className="object-contain"
+            />
           </div>
           <div className="relative aspect-[3/4]">
-            <Image src="/images/main/img_portfolio03.png" alt="포트폴리오 3" fill className="object-contain" />
+            <Image
+              src="/images/main/img_portfolio03.png"
+              alt="포트폴리오 3"
+              fill
+              sizes="(max-width: 768px) 33vw, 240px"
+              className="object-contain"
+            />
           </div>
         </div>
       </div>
