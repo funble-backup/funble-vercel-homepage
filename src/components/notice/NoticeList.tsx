@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Notice } from "@/types";
 import Pagination from "@/components/common/Pagination";
 
@@ -8,7 +9,6 @@ interface NoticeListProps {
   page: number;
   totalPages: number;
   loading?: boolean;
-  onSelectNotice: (id: number) => void;
   onPageChange: (page: number) => void;
 }
 
@@ -17,7 +17,6 @@ export default function NoticeList({
   page,
   totalPages,
   loading,
-  onSelectNotice,
   onPageChange,
 }: NoticeListProps) {
   return (
@@ -31,26 +30,21 @@ export default function NoticeList({
 
       {/* List */}
       {notices.length === 0 ? (
-        <div className="py-20 text-center text-gray-400">
-          등록된 공지사항이 없습니다.
-        </div>
+        <div className="py-20 text-center text-gray-400">등록된 공지사항이 없습니다.</div>
       ) : (
         <ul className="border-t border-gray-200">
           {notices.map((notice) => (
-            <li
-              key={notice.id}
-              className="grid grid-cols-1 md:grid-cols-[80px_1fr_140px] border-b border-gray-100 py-4 px-4 hover:bg-gray-50 cursor-pointer transition-colors"
-              onClick={() => onSelectNotice(notice.id)}
-            >
-              <span className="hidden md:block text-center text-sm text-gray-400">
-                {notice.id}
-              </span>
-              <span className="text-sm md:text-base text-gray-800 hover:text-primary">
-                {notice.title}
-              </span>
-              <span className="text-xs md:text-sm text-gray-400 md:text-center mt-1 md:mt-0">
-                {notice.created_at?.substring(0, 10)}
-              </span>
+            <li key={notice.id} className="border-b border-gray-100">
+              <Link
+                href={`/notice/${notice.id}`}
+                className="grid grid-cols-1 md:grid-cols-[80px_1fr_140px] py-4 px-4 hover:bg-gray-50 cursor-pointer transition-colors"
+              >
+                <span className="hidden md:block text-center text-sm text-gray-400">{notice.id}</span>
+                <span className="text-sm md:text-base text-gray-800 hover:text-primary">{notice.title}</span>
+                <span className="text-xs md:text-sm text-gray-400 md:text-center mt-1 md:mt-0">
+                  {notice.created_at?.substring(0, 10)}
+                </span>
+              </Link>
             </li>
           ))}
         </ul>

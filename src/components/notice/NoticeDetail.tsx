@@ -1,23 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import { Notice } from "@/types";
 
 interface NoticeDetailProps {
   notice: Notice;
-  onBack: () => void;
 }
 
-export default function NoticeDetail({ notice, onBack }: NoticeDetailProps) {
+export default function NoticeDetail({ notice }: NoticeDetailProps) {
   return (
     <div>
       <div className="border-t-2 border-gray-800">
         <div className="py-6 px-4 border-b border-gray-200">
-          <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-2">
-            {notice.title}
-          </h2>
-          <p className="text-sm text-gray-400">
-            {notice.created_at?.substring(0, 10)}
-          </p>
+          <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-2">{notice.title}</h2>
+          <p className="text-sm text-gray-400">{notice.created_at?.substring(0, 10)}</p>
         </div>
         <div
           className="py-8 px-4 text-sm leading-relaxed text-gray-700 min-h-[200px] prose max-w-none"
@@ -25,12 +21,12 @@ export default function NoticeDetail({ notice, onBack }: NoticeDetailProps) {
         />
       </div>
       <div className="mt-8 text-center">
-        <button
-          onClick={onBack}
-          className="px-8 py-2.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+        <Link
+          href="/notice"
+          className="inline-block px-8 py-2.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors"
         >
           목록으로
-        </button>
+        </Link>
       </div>
     </div>
   );

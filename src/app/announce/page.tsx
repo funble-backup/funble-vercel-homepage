@@ -50,6 +50,16 @@ function AnnounceContent() {
   const [initializedFromUrl, setInitializedFromUrl] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
 
+  // URL ?stock= 과 선택 종목 동기화 (뒤로/앞으로, 직접 주소 변경)
+  useEffect(() => {
+    if (!initializedFromUrl || stocks.length === 0) return;
+    if (!urlStock) return;
+    const sid = Number(urlStock);
+    if (!Number.isFinite(sid)) return;
+    if (!stocks.some((s) => s.id === sid)) return;
+    setSelectedStockId((prev) => (prev === sid ? prev : sid));
+  }, [urlStock, initializedFromUrl, stocks]);
+
   // Announce state
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [annPage, setAnnPage] = useState(1);
@@ -140,36 +150,50 @@ function AnnounceContent() {
     return qs ? `/announce?${qs}` : "/announce";
   }, []);
 
-  const fetchDetail = useCallback(async (annId: number, pushUrl = true) => {
-    setDetailLoading(true);
-    if (pushUrl) {
+  /** 상세는 URL ?id= 만 바꾸고, 실제 로드는 아래 useEffect(urlId)가 담당 (뒤로가기와 동일한 흐름) */
+  const openAnnounceDetail = useCallback(
+    (annId: number) => {
       router.push(buildUrl(selectedStockId, annId), { scroll: false });
-    }
-    try {
-      const res = await fetch(`/api/announcements/${annId}`);
-      if (!res.ok) throw new Error("Failed");
-      const data: AnnounceDetail = await res.json();
-      setDetail(data);
-    } catch {
-      setDetail(null);
-    } finally {
-      setDetailLoading(false);
-    }
-  }, [router, selectedStockId, buildUrl]);
+    },
+    [router, selectedStockId, buildUrl]
+  );
 
   const clearDetail = useCallback(() => {
     setDetail(null);
     router.push(buildUrl(selectedStockId), { scroll: false });
   }, [router, selectedStockId, buildUrl]);
 
-  // Load detail from URL param on initial mount only
-  const [mountedWithDetail] = useState(() => !!urlId);
+  // URL ?id= 와 상세 뷰 동기화 (브라우저 뒤로/앞으로, 북마크 진입, 목록에서 클릭)
   useEffect(() => {
-    if (mountedWithDetail && urlId && !detail && !detailLoading) {
-      fetchDetail(Number(urlId), false);
+    if (!initializedFromUrl) return;
+
+    if (!urlId) {
+      setDetail(null);
+      setDetailLoading(false);
+      return;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mountedWithDetail]);
+
+    const idNum = Number(urlId);
+    if (!Number.isFinite(idNum)) return;
+
+    let cancelled = false;
+    setDetailLoading(true);
+    fetch(`/api/announcements/${idNum}`)
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((data: AnnounceDetail) => {
+        if (!cancelled) setDetail(data);
+      })
+      .catch(() => {
+        if (!cancelled) setDetail(null);
+      })
+      .finally(() => {
+        if (!cancelled) setDetailLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [urlId, initializedFromUrl]);
 
   // Fetch list data when stock or tab changes (only when not viewing detail)
   useEffect(() => {
@@ -340,7 +364,7 @@ function AnnounceContent() {
                 totalPages={annTotalPages}
                 loading={annLoading}
                 onPageChange={(p) => fetchAnnouncements(selectedStockId, p)}
-                onSelectAnnounce={(id) => fetchDetail(id)}
+                onSelectAnnounce={(id) => openAnnounceDetail(id)}
               />
             ) : (
               <PriceList
