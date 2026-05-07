@@ -10,11 +10,25 @@ import PartnersSection from "@/components/home/PartnersSection";
 import InvestorsSection from "@/components/home/InvestorsSection";
 import NewsroomSection from "@/components/home/NewsroomSection";
 import RecruitSection from "@/components/home/RecruitSection";
+import { queryAll } from "@/lib/db";
+import type { Banner } from "@/types";
 
-export default function HomePage() {
+async function getBanners(): Promise<Banner[]> {
+  try {
+    return await queryAll<Banner>(
+      "SELECT * FROM banners WHERE is_active = 1 ORDER BY sort_order ASC"
+    );
+  } catch {
+    return [];
+  }
+}
+
+export default async function HomePage() {
+  const banners = await getBanners();
+
   return (
     <>
-      <HeroBanner />
+      <HeroBanner banners={banners} />
       <MainTagline />
       <SubscriptionSection />
       <MarketSection />

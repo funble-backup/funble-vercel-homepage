@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { FaBars, FaTimes } from "react-icons/fa";
+import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
   { label: "펀블소개", href: "/funble" },
@@ -15,6 +16,9 @@ const NAV_ITEMS = [
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+
+  if (pathname?.startsWith("/admin")) return null;
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">

@@ -65,14 +65,29 @@ async function initTurso(url: string, authToken?: string) {
   // This is idempotent (CREATE TABLE IF NOT EXISTS).
   await initTablesTurso(client);
 
+  // libsql Row objects are Array-like with named columns mixed in, which fails
+  // React's "plain object" check when passed to Client Components.
+  // Build plain objects from result.columns to normalize at the DB boundary.
+  const rowsToPlain = <T>(columns: ReadonlyArray<string>, rows: ReadonlyArray<unknown>): T[] => {
+    return rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      const obj: Record<string, unknown> = {};
+      for (let i = 0; i < columns.length; i++) {
+        obj[columns[i]] = row[columns[i]];
+      }
+      return obj as T;
+    });
+  };
+
   _queryAll = async <T>(sql: string, ...params: unknown[]) => {
     const result = await client.execute({ sql, args: params as (string | number | null | bigint | ArrayBuffer)[] });
-    return result.rows as T[];
+    return rowsToPlain<T>(result.columns, result.rows as unknown as unknown[]);
   };
 
   _queryOne = async <T>(sql: string, ...params: unknown[]) => {
     const result = await client.execute({ sql, args: params as (string | number | null | bigint | ArrayBuffer)[] });
-    return (result.rows[0] as T) ?? undefined;
+    if (result.rows.length === 0) return undefined;
+    return rowsToPlain<T>(result.columns, [result.rows[0]] as unknown as unknown[])[0];
   };
 
   _execute = async (sql: string, ...params: unknown[]) => {

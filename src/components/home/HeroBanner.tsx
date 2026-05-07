@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay } from "swiper/modules";
 import "swiper/css";
@@ -8,16 +7,11 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Banner } from "@/types";
 
-export default function HeroBanner() {
-  const [banners, setBanners] = useState<Banner[]>([]);
+interface HeroBannerProps {
+  banners: Banner[];
+}
 
-  useEffect(() => {
-    fetch("/api/banners")
-      .then((res) => res.json())
-      .then((data) => setBanners(Array.isArray(data) ? data : []))
-      .catch(() => {});
-  }, []);
-
+export default function HeroBanner({ banners }: HeroBannerProps) {
   if (banners.length === 0) return null;
 
   return (
@@ -40,7 +34,7 @@ export default function HeroBanner() {
                     src={banner.image_url}
                     alt={banner.title}
                     fill
-                    sizes="100vw"
+                    sizes="(min-width: 768px) 100vw, 0px"
                     className="object-cover"
                     priority={i === 0}
                   />
@@ -52,7 +46,7 @@ export default function HeroBanner() {
                     src={mobileSrc}
                     alt={banner.title}
                     fill
-                    sizes="100vw"
+                    sizes="(min-width: 768px) 0px, 100vw"
                     className="object-cover"
                     priority={i === 0}
                   />
