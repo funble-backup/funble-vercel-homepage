@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Notice } from "@/types";
+import { sanitizeHtml } from "@/lib/sanitizeHtml";
 
 interface NoticeDetailProps {
   notice: Notice;
@@ -17,7 +18,7 @@ export default function NoticeDetail({ notice }: NoticeDetailProps) {
         </div>
         <div
           className="py-8 px-4 text-sm leading-relaxed text-gray-700 min-h-[200px] prose max-w-none"
-          dangerouslySetInnerHTML={{ __html: notice.content }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(notice.content) }}
         />
       </div>
       <div className="mt-8 text-center">

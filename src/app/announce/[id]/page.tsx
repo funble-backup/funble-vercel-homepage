@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { sanitizeHtml } from "@/lib/sanitizeHtml";
 
 interface AnnounceDetail {
   id: number;
@@ -105,7 +106,7 @@ export default function AnnounceDetailPage() {
       {data.content ? (
         <div
           className="prose max-w-none text-sm text-gray-700 leading-relaxed mb-8"
-          dangerouslySetInnerHTML={{ __html: data.content }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.content) }}
         />
       ) : (
         <div className="py-8 text-center text-gray-400 text-sm">

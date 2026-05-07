@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Faq } from "@/types";
+import { sanitizeHtml } from "@/lib/sanitizeHtml";
 
 interface FaqAccordionProps {
   faqs: Faq[];
@@ -60,7 +61,7 @@ export default function FaqAccordion({ faqs }: FaqAccordionProps) {
               <div className="px-2 pb-5">
                 <div
                   className="text-[14px] text-gray-500 leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: faq.answer }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(faq.answer) }}
                 />
               </div>
             </div>

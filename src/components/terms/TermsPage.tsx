@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitizeHtml";
 
 interface TermsPageProps {
   type: "clause" | "service" | "privacy";
@@ -62,7 +63,7 @@ export default function TermsPage({ type, title }: TermsPageProps) {
       ) : (
         <div
           className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
-          dangerouslySetInnerHTML={{ __html: content }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }}
         />
       )}
     </div>

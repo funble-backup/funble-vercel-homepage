@@ -2,7 +2,14 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 
-const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret-change-me";
+function requireJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("Missing JWT_SECRET environment variable");
+  }
+  return secret;
+}
+
 const COOKIE_NAME = "funble_admin_token";
 const TOKEN_EXPIRY = "24h";
 
@@ -18,12 +25,12 @@ export async function verifyPassword(
 }
 
 export function createToken(payload: { userId: number; username: string }): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
+  return jwt.sign(payload, requireJwtSecret(), { expiresIn: TOKEN_EXPIRY });
 }
 
 export function verifyToken(token: string): { userId: number; username: string } | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as { userId: number; username: string };
+    return jwt.verify(token, requireJwtSecret()) as { userId: number; username: string };
   } catch {
     return null;
   }
@@ -34,7 +41,7 @@ export async function setAuthCookie(token: string) {
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: "strict",
     maxAge: 60 * 60 * 24,
     path: "/",
   });

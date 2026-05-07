@@ -11,6 +11,7 @@ import {
 import StockFilter from "@/components/announce/StockFilter";
 import AnnounceList from "@/components/announce/AnnounceList";
 import PriceList from "@/components/announce/PriceList";
+import { sanitizeHtml } from "@/lib/sanitizeHtml";
 
 type Tab = "announce" | "price";
 
@@ -325,7 +326,7 @@ function AnnounceContent() {
                   {detail.content ? (
                     <div
                       className="prose max-w-none text-sm text-gray-700 leading-relaxed mb-8"
-                      dangerouslySetInnerHTML={{ __html: detail.content }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(detail.content) }}
                     />
                   ) : (
                     <div className="py-8 text-center text-gray-400 text-sm">
