@@ -19,12 +19,6 @@ export default function MainTagline() {
           <p className="text-base text-gray-500 mb-8">
             펀블에서 다양한 랜드마크 건물에 투자해보세요.
           </p>
-          <a
-            href="#"
-            className="inline-block bg-[rgb(35,184,188)] hover:bg-[rgb(28,160,164)] text-white font-semibold px-8 py-3 rounded-full transition-colors"
-          >
-            다운로드
-          </a>
         </div>
         <div className="flex-1 flex justify-center">
           <div className="relative w-[280px] h-[560px]">
