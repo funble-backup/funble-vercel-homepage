@@ -9,7 +9,6 @@ import TaxSection from "@/components/home/TaxSection";
 import PartnersSection from "@/components/home/PartnersSection";
 import InvestorsSection from "@/components/home/InvestorsSection";
 import NewsroomSection from "@/components/home/NewsroomSection";
-import RecruitSection from "@/components/home/RecruitSection";
 import { queryAll } from "@/lib/db";
 import type { Banner } from "@/types";
 
@@ -39,7 +38,6 @@ export default async function HomePage() {
       <PartnersSection />
       <InvestorsSection />
       <NewsroomSection />
-      <RecruitSection />
     </>
   );
 }
